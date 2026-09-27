@@ -67,6 +67,15 @@ header p{margin:0;color:var(--muted);max-width:75ch}
 .qgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .qgrid button{text-align:left;line-height:1.25;padding:7px 8px}
 .qgrid small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.qgrid .zero{grid-column:1/-1}
+.qgrid .zero small{color:inherit;opacity:.75}
+.tblock{display:flex;flex-wrap:wrap;margin-bottom:16px;border:1px solid var(--rule);border-radius:6px;background:var(--surface);width:fit-content;max-width:100%}
+.tblock div{display:grid;gap:1px;padding:6px 14px;border-right:1px solid var(--rule)}
+.tblock div:last-child{border-right:0}
+.tblock span{font:600 10px/1.2 var(--cond);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.tblock b{font:500 13px/1.3 var(--mono);font-variant-numeric:tabular-nums}
+.tblock a{color:inherit;text-decoration-color:var(--rule);text-underline-offset:3px}
+.tblock a:hover{text-decoration-color:currentColor}
 .axrow{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
 .axrow button{padding:5px 7px;font:600 12px/1 var(--mono)}
 .axrow button[data-rb],.axrow button[data-fa="0"],.axrow button[data-axis="d"]{font:500 12px/1 var(--sans)}
@@ -141,6 +150,12 @@ footer{margin-top:22px;color:var(--muted);font-size:12.5px;max-width:95ch}
 <body>
 
 <div class="wrap">
+  <div class="tblock" aria-label="Document information">
+    <div><span>Author</span><b>Carlo Tuzi</b></div>
+    <div><span>Email</span><b><a href="mailto:carlo.tuzi@gmail.com">carlo.tuzi@gmail.com</a></b></div>
+    <div><span>Date</span><b><time datetime="2026-09-27">2026-09-27</time></b></div>
+    <div><span>Revision</span><b>Rev. 3</b></div>
+  </div>
   <header>
     <div class="eyebrow">Rigid-body statics · space frame {s} and body frame {b}</div>
     <h1>Torque in Two Frames</h1>
@@ -152,6 +167,7 @@ footer{margin-top:22px;color:var(--muted);font-size:12.5px;max-width:95ch}
       <div class="grp">
         <h2>Quick set</h2>
         <div class="qgrid">
+          <button type="button" id="q-zero" class="primary zero">Everything to zero<small>{b} = {s}, r<sub>b</sub> = 0, f = 0, θ = 0, θ̇ = 0</small></button>
           <button type="button" id="q-coinc">{b} = {s}<small>coincident frames</small></button>
           <button type="button" id="q-origin">Body at origin<small>p = 0, keep rotation</small></button>
           <button type="button" id="q-norot">No rotation<small>θ = 0, keep position</small></button>
@@ -431,6 +447,7 @@ const say=h=>{$('exp-text').innerHTML=h;};
 $('q-coinc').addEventListener('click',()=>{ S.p=[0,0,0]; S.th=0; if(spinning) toggleSpin(); after(); say('{b} and {s} coincide: p = 0 and R<sub>sb</sub> = I. Now r<sub>s</sub> = r<sub>b</sub>, f<sub>s</sub> = f<sub>b</sub> and m<sub>s</sub> = m<sub>b</sub>. Change one thing at a time from here.'); });
 $('q-origin').addEventListener('click',()=>{ S.p=[0,0,0]; after(); say('The body origin sits on the {s} origin (p = 0). Both torques are now about the same point, so m<sub>b</sub> = R<sub>sb</sub><sup>T</sup>m<sub>s</sub> exactly: only the coordinates differ.'); });
 $('q-norot').addEventListener('click',()=>{ S.th=0; if(spinning) toggleSpin(); after(); say('R<sub>sb</sub> = I: the axes of {b} are parallel to those of {s}. Vectors have the same coordinates in both frames, but m<sub>s</sub> and m<sub>b</sub> still differ by p × f.'); });
+$('q-zero').addEventListener('click',()=>{ S.p=[0,0,0]; S.az=0; S.el=90; S.th=0; S.rate=0; S.rb=[0,0,0]; S.fFrame='s'; S.f=[0,0,0]; if(spinning) toggleSpin(); after(); say('Everything is zero: {b} coincides with {s}, R<sub>sb</sub> = I, the push point is at the origin, and there is no force, rotation or angular speed. All torques are zero. Now raise one value at a time with the + buttons and watch which terms appear.'); });
 $('q-clean').addEventListener('click',()=>{ S.p=[0,0,0]; S.th=0; S.rb=[0,0,0]; S.fFrame='s'; S.f=[1.25,0,0]; if(spinning) toggleSpin(); after(); say('Everything at the origin and aligned with x: no lever arm, so no torque. Press + on r<sub>y</sub> and watch m appear along −z, because ŷ × x̂ = −ẑ.'); });
 
 function setForceFrame(fr){
