@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Interactive 3D lab for rotation matrices, skew-symmetric matrices, torque and wrenches, seen from the space frame {s} and the body frame {b}.">
+<title>Torque in Two Frames</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,400;1,400;1,600&display=swap">
+<style>
+:root{
+  --bg:#EBEFF2; --surface:#FAFBFC; --surface2:#F1F4F6; --ink:#15202B; --muted:#5A6673; --rule:#CCD4DB;
+  --scene:#F7F9FA; --grid:#D3DAE0; --btn:#15202B; --btn-ink:#FFFFFF;
+  --x:#D6423A; --y:#2A9346; --z:#2E6CD4; --force:#DD7410; --torque:#BE2F80; --axis:#6A5ACD;
+  --ok:#2A8A4A; --blk:#E4E9EE; --blk2:#F3E6EE;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --cond:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --math:"STIX Two Text","Cambria Math",Cambria,"Times New Roman",serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0E1318; --surface:#151C23; --surface2:#1B242D; --ink:#E3E9EE; --muted:#93A1AE; --rule:#2A3643;
+    --scene:#10171D; --grid:#25313C; --btn:#E3E9EE; --btn-ink:#0E1318;
+    --x:#F0605A; --y:#4CC46A; --z:#5E95F2; --force:#F79B3C; --torque:#E65BAA; --axis:#9C8EF0;
+    --ok:#4CC46A; --blk:#1F2A34; --blk2:#2E1F2A;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0E1318; --surface:#151C23; --surface2:#1B242D; --ink:#E3E9EE; --muted:#93A1AE; --rule:#2A3643;
+  --scene:#10171D; --grid:#25313C; --btn:#E3E9EE; --btn-ink:#0E1318;
+  --x:#F0605A; --y:#4CC46A; --z:#5E95F2; --force:#F79B3C; --torque:#E65BAA; --axis:#9C8EF0;
+  --ok:#4CC46A; --blk:#1F2A34; --blk2:#2E1F2A;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans)}
+.wrap{max-width:1480px;margin:0 auto;padding-inline:20px;padding-block:22px 56px}
+header{display:grid;gap:6px;margin-bottom:18px;max-width:900px}
+.eyebrow{font:600 11px/1 var(--cond);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h1{font:700 clamp(26px,3.4vw,38px)/1.05 var(--cond);letter-spacing:-.01em;margin:0;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:75ch}
+.sym{font-family:var(--math);font-size:1.12em;white-space:nowrap}
+.sym i{font-style:italic}
+.sym sub,.sym sup{font-family:var(--math);font-size:.72em;font-style:normal}
+.c-f{color:var(--force)} .c-m{color:var(--torque)} .c-x{color:var(--x)} .c-y{color:var(--y)} .c-z{color:var(--z)} .c-a{color:var(--axis)}
+
+.app{display:grid;grid-template-columns:344px minmax(0,1fr);grid-template-areas:"ctl views" "ctl math";gap:18px;align-items:start}
+.controls{grid-area:ctl;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);max-height:calc(100vh - 24px);overflow:auto;
+  background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;display:grid;gap:16px}
+.stage{grid-area:views;display:grid;gap:10px;min-width:0}
+.mathwrap{grid-area:math;min-width:0}
+@media (max-width:1000px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-areas:"views" "ctl" "math"}
+  .controls{position:static;max-height:none}
+}
+
+.grp{display:grid;gap:6px}
+.grp h2{font:600 12px/1.2 var(--cond);letter-spacing:.1em;text-transform:uppercase;margin:0;color:var(--muted);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.grp h2 .sym{text-transform:none;letter-spacing:0;color:var(--ink);font-size:14px}
+.sl{display:grid;grid-template-columns:58px 24px minmax(0,1fr) 24px 56px;align-items:center;gap:5px}
+.sl label{font:13px var(--math);font-style:italic;white-space:nowrap}
+.sl .stp{padding:0;height:24px;width:24px;font:500 15px/1 var(--mono);display:grid;place-items:center}
+.sl .num{width:100%;font:12px var(--mono);font-variant-numeric:tabular-nums;text-align:right;padding:3px 4px;border:1px solid var(--rule);border-radius:4px;background:var(--surface2);color:var(--ink)}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.qgrid button{text-align:left;line-height:1.25;padding:7px 8px}
+.qgrid small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.axrow{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.axrow button{padding:5px 7px;font:600 12px/1 var(--mono)}
+.axrow button[data-rb],.axrow button[data-fa="0"],.axrow button[data-axis="d"]{font:500 12px/1 var(--sans)}
+.axlbl{font:italic 13px var(--math);color:var(--muted);margin-right:2px}
+.snap{display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer}
+.snap span{color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--ink);margin:0}
+.btnrow{display:flex;flex-wrap:wrap;gap:6px}
+button{font:500 12.5px/1 var(--sans);color:var(--ink);background:var(--surface2);border:1px solid var(--rule);border-radius:5px;padding:7px 10px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--z);outline-offset:2px}
+button.primary{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+button[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:8px 6px;line-height:1.25;text-align:center}
+.seg button + button{border-left:1px solid var(--rule)}
+.seg small{display:block;font-size:11px;opacity:.75;margin-top:2px}
+.hint{font-size:12px;color:var(--muted);margin:0}
+
+.views{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:700px){.views{grid-template-columns:1fr}}
+.view{position:relative;aspect-ratio:4/3;max-width:100%;background:var(--scene);border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.view canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.view canvas:active{cursor:grabbing}
+.vlabel{position:absolute;left:10px;top:9px;pointer-events:none;display:grid;gap:1px}
+.vlabel b{font:700 14px/1.1 var(--cond);letter-spacing:.02em}
+.vlabel span{font-size:11.5px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:12.5px;color:var(--muted)}
+.legend .k{display:inline-flex;align-items:center;gap:6px}
+.sw{width:18px;height:4px;border-radius:2px;display:inline-block}
+.sw.dash{height:0;border-top:2px dashed var(--ink);background:none}
+.legend label{display:inline-flex;align-items:center;gap:5px;cursor:pointer;color:var(--ink)}
+.legend .sep{flex:1}
+
+.try{display:grid;gap:8px;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:12px 14px}
+.try-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.try-head .eyebrow{margin-right:4px}
+.try p{margin:0;max-width:95ch}
+.try p:empty{display:none}
+
+.math{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,470px),1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;display:grid;gap:10px;min-width:0;align-content:start}
+.card h3{margin:0;font:700 17px/1.2 var(--cond);text-wrap:balance}
+.card .note{margin:0;color:var(--muted);font-size:13px;max-width:70ch}
+.eq{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;overflow-x:auto;padding-block:2px;font-family:var(--math);font-size:15px}
+.eq .op{font-family:var(--math);font-size:16px;padding-inline:1px}
+.eq .coef{font:12.5px var(--mono);font-variant-numeric:tabular-nums}
+.mx{display:inline-flex;align-items:stretch;position:relative;padding:3px 7px;font:12.5px/1.45 var(--mono);font-variant-numeric:tabular-nums}
+.mx::before,.mx::after{content:"";position:absolute;top:0;bottom:0;width:5px;border:1.5px solid var(--ink)}
+.mx::before{left:0;border-right:0}
+.mx::after{right:0;border-left:0}
+.mx-g{display:grid;column-gap:0}
+.mx-g > span{text-align:right;padding:0 5px;white-space:nowrap}
+.mx-g > span.sy{font:italic 14px/1.35 var(--math);text-align:center}
+.mx .cx{color:var(--x)} .mx .cy{color:var(--y)} .mx .cz{color:var(--z)}
+.mx .cf{color:var(--force)} .mx .cm{color:var(--torque)}
+.mx .bR{background:var(--blk)} .mx .bP{background:var(--blk2)}
+.rows{display:grid;gap:3px;font-family:var(--math);font-size:14px;overflow-x:auto}
+.rows div{white-space:nowrap}
+.rows .n{font:12.5px var(--mono);font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;border:1px solid var(--rule);border-radius:999px;padding:3px 9px;background:var(--surface2);white-space:nowrap}
+.chip .n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.chip.ok::before{content:"✓ ";color:var(--ok);font-weight:600}
+.chip.warn::before{content:"≠ ";color:var(--torque);font-weight:600}
+.subh{font:600 11px/1 var(--cond);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+footer{margin-top:22px;color:var(--muted);font-size:12.5px;max-width:95ch}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+</style>
+<style>html{color-scheme:light}@media (prefers-color-scheme: dark){html{color-scheme:dark}}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Rigid-body statics · space frame {s} and body frame {b}</div>
+    <h1>Torque in Two Frames</h1>
+    <p>A box carries its own body frame <span class="sym">{<i>b</i>}</span>. A force <span class="sym c-f"><i>f</i></span> acts at a point <span class="sym"><i>r</i></span> on the box. Move the body, rotate it, move the push point, and watch the rotation matrix, the skew matrices and the torque <span class="sym c-m"><i>m</i> = <i>r</i> × <i>f</i> = [<i>r</i>]<i>f</i></span> update in both frames. Notation follows <em>Modern Robotics</em> (Lynch &amp; Park): <span class="sym">[<i>x</i>]</span> is the 3×3 skew-symmetric matrix of <span class="sym"><i>x</i></span>.</p>
+  </header>
+
+  <div class="app">
+    <aside class="controls" aria-label="Controls">
+      <div class="grp">
+        <h2>Quick set</h2>
+        <div class="qgrid">
+          <button type="button" id="q-coinc">{b} = {s}<small>coincident frames</small></button>
+          <button type="button" id="q-origin">Body at origin<small>p = 0, keep rotation</small></button>
+          <button type="button" id="q-norot">No rotation<small>θ = 0, keep position</small></button>
+          <button type="button" id="q-clean">Clean start<small>{b} = {s}, r<sub>b</sub> = 0, f ∥ x</small></button>
+        </div>
+        <label class="snap"><input type="checkbox" id="coarse" checked> Sliders snap to coarse steps <span id="coarse-hint">(0.25 · 15°)</span></label>
+      </div>
+      <div class="grp" id="g-p">
+        <h2>Body position <span class="sym"><i>p</i> in {<i>s</i>}</span></h2>
+      </div>
+      <div class="grp" id="g-rot">
+        <h2>Body orientation <span class="sym">ω̂, <i>θ</i></span></h2>
+        <div class="axrow" aria-label="Rotation axis presets"><span class="axlbl">ω̂ along</span>
+          <button type="button" data-axis="+x" class="c-x">+x</button><button type="button" data-axis="-x" class="c-x">−x</button>
+          <button type="button" data-axis="+y" class="c-y">+y</button><button type="button" data-axis="-y" class="c-y">−y</button>
+          <button type="button" data-axis="+z" class="c-z">+z</button><button type="button" data-axis="-z" class="c-z">−z</button>
+          <button type="button" data-axis="d" title="(1,1,1)/√3">diag</button>
+        </div>
+      </div>
+      <div class="grp" id="g-w">
+        <h2>Angular speed <span class="sym"><i>θ̇</i></span></h2>
+        <div class="btnrow">
+          <button type="button" id="spin" class="primary" aria-pressed="false">Spin about ω̂</button>
+          <button type="button" id="reset">Reset all</button>
+        </div>
+      </div>
+      <div class="grp" id="g-r">
+        <h2>Push point <span class="sym"><i>r</i><sub>b</sub> in {<i>b</i>}</span></h2>
+        <div class="axrow" aria-label="Push point presets"><span class="axlbl">r<sub>b</sub> at</span>
+          <button type="button" data-rb="o">{b} origin</button>
+          <button type="button" data-rb="x" class="c-x">+x face</button>
+          <button type="button" data-rb="y" class="c-y">+y face</button>
+          <button type="button" data-rb="z" class="c-z">+z face</button>
+          <button type="button" data-rb="c">corner</button>
+        </div>
+        <p class="hint">Fixed to the box, so it is set in body coordinates.</p>
+      </div>
+      <div class="grp" id="g-f">
+        <h2>Force <span class="sym c-f" id="f-title"></span></h2>
+        <div class="seg" role="group" aria-label="Frame the force is fixed in">
+          <button type="button" id="ff-s" aria-pressed="true">Fixed in {s}<small>like gravity</small></button>
+          <button type="button" id="ff-b" aria-pressed="false">Fixed in {b}<small>like a thruster</small></button>
+        </div>
+        <div class="axrow" aria-label="Force direction presets"><span class="axlbl" id="f-along">f along</span>
+          <button type="button" data-fa="+x" class="c-x">+x</button><button type="button" data-fa="-x" class="c-x">−x</button>
+          <button type="button" data-fa="+y" class="c-y">+y</button><button type="button" data-fa="-y" class="c-y">−y</button>
+          <button type="button" data-fa="+z" class="c-z">+z</button><button type="button" data-fa="-z" class="c-z">−z</button>
+          <button type="button" data-fa="0">zero</button>
+        </div>
+      </div>
+    </aside>
+
+    <section class="stage" aria-label="3D views">
+      <div class="views">
+        <div class="view"><canvas id="cv-s" aria-label="Space view: camera fixed in the space frame"></canvas>
+          <div class="vlabel"><b>Space view</b><span>camera fixed to {s} · the body moves</span></div></div>
+        <div class="view"><canvas id="cv-b" aria-label="Body view: camera rides with the body frame"></canvas>
+          <div class="vlabel"><b>Body view</b><span>camera rides with {b} · the world moves</span></div></div>
+      </div>
+      <div class="legend">
+        <span class="k"><span class="sw" style="background:var(--x)"></span>x</span>
+        <span class="k"><span class="sw" style="background:var(--y)"></span>y</span>
+        <span class="k"><span class="sw" style="background:var(--z)"></span>z</span>
+        <span class="k"><span class="sw" style="background:var(--force)"></span>force <span class="sym"><i>f</i></span></span>
+        <span class="k"><span class="sw" style="background:var(--torque)"></span>torque <span class="sym"><i>m</i></span> (drawn at ½ scale)</span>
+        <span class="k"><span class="sw dash"></span>position vectors</span>
+        <span class="sep"></span>
+        <label><input type="checkbox" id="t-r" checked> vectors</label>
+        <label><input type="checkbox" id="t-m" checked> torques</label>
+        <label><input type="checkbox" id="t-w" checked> axis &amp; ω</label>
+        <label><input type="checkbox" id="t-g" checked> grid</label>
+      </div>
+      <div class="try">
+        <div class="try-head"><span class="eyebrow">Try this</span><span class="btnrow" id="exps"></span></div>
+        <p id="exp-text">Drag inside either view to orbit, scroll to zoom. Pick an experiment above, or move the sliders.</p>
+      </div>
+    </section>
+
+    <section class="mathwrap" aria-label="Live mathematics">
+      <div class="math">
+        <article class="card" id="c-rot"></article>
+        <article class="card" id="c-skew"></article>
+        <article class="card" id="c-space"></article>
+        <article class="card" id="c-wrench"></article>
+      </div>
+      <footer>Units are arbitrary (lengths in m, forces in N gives torques in N·m). The body rotates about its own origin, so <span class="sym"><i>T</i><sub>sb</sub> = (<i>R</i><sub>sb</sub>, <i>p</i>)</span> with <span class="sym"><i>R</i><sub>sb</sub> = e<sup>[ω̂]θ</sup></span>.</footer>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+const D2R = Math.PI/180;
+/* ---------- small linear algebra ---------- */
+const add=(a,b)=>a.map((x,i)=>x+b[i]), sub=(a,b)=>a.map((x,i)=>x-b[i]), scl=(a,k)=>a.map(x=>x*k);
+const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const nrm=a=>Math.hypot(...a);
+const skew=v=>[[0,-v[2],v[1]],[v[2],0,-v[0]],[-v[1],v[0],0]];
+const mm=(A,B)=>A.map(r=>B[0].map((_,j)=>r.reduce((s,a,k)=>s+a*B[k][j],0)));
+const mv=(A,v)=>A.map(r=>r.reduce((s,a,k)=>s+a*v[k],0));
+const tr=A=>A[0].map((_,j)=>A.map(r=>r[j]));
+const madd=(A,B)=>A.map((r,i)=>r.map((x,j)=>x+B[i][j]));
+const mscl=(A,k)=>A.map(r=>r.map(x=>x*k));
+const I3=[[1,0,0],[0,1,0],[0,0,1]];
+const det3=M=>M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1])-M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0])+M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0]);
+const fmax=M=>Math.max(...M.flat().map(Math.abs));
+
+/* ---------- state ---------- */
+const DEFAULT = {p:[1.5,1,0.75], az:30, el:60, th:45, rate:60, rb:[0.75,0.25,0.25], f:[0,0,-1.25], fFrame:'s'};
+const HALF=[0.75,0.5,0.25]; // box half-extents, all on the 0.25 grid
+const S = JSON.parse(JSON.stringify(DEFAULT));
+const show = {r:true, m:true, w:true, g:true};
+let C = {}, dirty = true, spinning = false;
+
+function compute(){
+  const az=S.az*D2R, el=S.el*D2R, th=S.th*D2R;
+  const w=[Math.cos(el)*Math.cos(az), Math.cos(el)*Math.sin(az), Math.sin(el)].map(x=>Math.abs(x)<1e-12?0:x);
+  const W=skew(w), W2=mm(W,W), sn=Math.sin(th), cs=1-Math.cos(th);
+  const R=madd(madd(I3,mscl(W,sn)),mscl(W2,cs)), Rt=tr(R);
+  const p=S.p.slice(), rb=S.rb.slice();
+  const fs = S.fFrame==='s' ? S.f.slice() : mv(R,S.f);
+  const fb = S.fFrame==='b' ? S.f.slice() : mv(Rt,S.f);
+  const rs = add(p, mv(R,rb));
+  const ms = cross(rs,fs), mb = cross(rb,fb);
+  const ws = scl(w, S.rate*D2R), wb = mv(Rt,ws);
+  C={w,th,W,W2,sn,cs,R,Rt,p,rb,rs,fs,fb,ms,mb,ws,wb};
+}
+
+/* ---------- formatting ---------- */
+const fmt=(x,d=2)=>{ let s=(Math.abs(x)<0.5*Math.pow(10,-d)?0:x).toFixed(d); return s.replace('-','−'); };
+const sym=(s,sub,cls='')=>`<span class="sym ${cls}"><i>${s}</i>${sub?`<sub>${sub}</sub>`:''}</span>`;
+function mx(M,cell){
+  const rows = Array.isArray(M[0]) ? M : M.map(x=>[x]);
+  const n = rows[0].length;
+  let h=`<span class="mx"><span class="mx-g" style="grid-template-columns:repeat(${n},auto)">`;
+  rows.forEach((r,i)=>r.forEach((v,j)=>{
+    const c = cell ? cell(i,j) : '';
+    h += typeof v==='number' ? `<span class="${c}">${fmt(v)}</span>` : `<span class="sy ${c}">${v}</span>`;
+  }));
+  return h+'</span></span>';
+}
+const colRGB=(i,j)=>['cx','cy','cz'][j];
+const op=s=>`<span class="op">${s}</span>`;
+const coef=x=>`<span class="coef">(${fmt(x)})</span>`;
+
+/* ---------- math cards ---------- */
+const $=id=>document.getElementById(id);
+function renderMath(){
+  const {w,th,W,W2,sn,cs,R,Rt,p,rb,rs,fs,fb,ms,mb}=C;
+  const RtR=mm(Rt,R), skewErr=fmax(madd(tr(W),W)), orthErr=fmax(madd(RtR,mscl(I3,-1)));
+  const fsTxt = S.fFrame==='s';
+
+  $('c-rot').innerHTML = `
+    <h3>Rotation from a skew matrix</h3>
+    <p class="note">Orientation is given in exponential coordinates: a unit axis ω̂ and an angle θ. Rodrigues' formula turns the skew matrix [ω̂] into the rotation matrix <i>R</i><sub>sb</sub>.</p>
+    <div class="eq">${sym('ω̂','','c-a')} ${op('=')} ${mx(w)} <span class="op">,</span> ${sym('θ')} ${op('=')} <span class="coef">${fmt(S.th,1)}° = ${fmt(th,3)} rad</span></div>
+    <div class="eq"><span class="sym">[ω̂]</span> ${op('=')} ${mx(W)} <span class="sym">[ω̂]<sup>2</sup></span> ${op('=')} ${mx(W2)}</div>
+    <div class="eq"><span class="sym"><i>R</i><sub>sb</sub> = <i>I</i> + sin θ [ω̂] + (1 − cos θ) [ω̂]<sup>2</sup></span></div>
+    <div class="eq">${sym('R','sb')} ${op('=')} ${mx(I3)} ${op('+')} ${coef(sn)} ${mx(W)} ${op('+')} ${coef(cs)} ${mx(W2)} ${op('=')} ${mx(R,colRGB)}</div>
+    <p class="note">The columns of <i>R</i><sub>sb</sub> are the body axes <span class="c-x">x̂<sub>b</sub></span>, <span class="c-y">ŷ<sub>b</sub></span>, <span class="c-z">ẑ<sub>b</sub></span> written in {s} coordinates. Its transpose <i>R</i><sub>bs</sub> = <i>R</i><sub>sb</sub><sup>T</sup> maps {s} coordinates back to {b}.</p>
+    <div class="chips">
+      <span class="chip ${skewErr<1e-9?'ok':''}">[ω̂]<sup>T</sup> = −[ω̂]</span>
+      <span class="chip ${orthErr<1e-9?'ok':''}">R<sup>T</sup>R = I</span>
+      <span class="chip ok">det R = <span class="n">${det3(R).toFixed(3)}</span></span>
+      <span class="chip ok">R ω̂ = ω̂ (axis is unmoved)</span>
+    </div>
+    <div class="subh">Angular velocity while spinning</div>
+    <div class="eq">${sym('ω','s','c-a')} ${op('=')} <span class="sym">ω̂ <i>θ̇</i></span> ${op('=')} ${mx(w)} <span class="coef">· ${fmt(S.rate*D2R,3)} rad/s</span> ${op('=')} ${mx(C.ws)} <span class="op">,</span> ${sym('ω','b','c-a')} ${op('=')} <span class="sym"><i>R</i><sub>sb</sub><sup>T</sup>ω<sub>s</sub></span> ${op('=')} ${mx(C.wb)}</div>
+    <div class="eq"><span class="sym"><i>Ṙ</i><sub>sb</sub><i>R</i><sub>sb</sub><sup>T</sup> = [ω<sub>s</sub>]</span> ${op('=')} ${mx(skew(C.ws))} <span class="op">,</span> <span class="sym"><i>Ṙ</i><sub>sb</sub> = [ω<sub>s</sub>]<i>R</i><sub>sb</sub></span> ${op('=')} ${mx(mm(skew(C.ws),R))}</div>
+    <p class="note">The skew matrix of the angular velocity gives the rate of change of R. The body turns about a fixed axis, and R ω̂ = ω̂, so here ω<sub>b</sub> = ω<sub>s</sub>. Set θ̇ with its slider and press Spin to watch it happen.</p>`;
+
+  const rows=(r,f,m,sb)=>{
+    const L=(a,b,c,d,k)=>`<div>${sym('m',k)} = ${sym('r',a)}${sym('f',b)} − ${sym('r',c)}${sym('f',d)} = <span class="n">(${fmt(r[+a-1])})(${fmt(f[+b-1])}) − (${fmt(r[+c-1])})(${fmt(f[+d-1])})</span> = <span class="n c-m">${fmt(m[+k-1])}</span></div>`;
+    return `<div class="rows">${L('2','3','3','2','1')}${L('3','1','1','3','2')}${L('1','2','2','1','3')}</div>`;
+  };
+  $('c-skew').innerHTML = `
+    <h3>Torque in the body frame {b}</h3>
+    <p class="note">The skew matrix turns a cross product into a matrix product. For any vector <i>a</i>, [<i>a</i>]<i>b</i> = <i>a</i> × <i>b</i>, and [<i>a</i>]<sup>T</sup> = −[<i>a</i>].</p>
+    <div class="eq"><span class="sym">[<i>a</i>]</span> ${op('=')} ${mx([['0','−a₃','a₂'],['a₃','0','−a₁'],['−a₂','a₁','0']])}</div>
+    <div class="subh">Moment about the {b} origin</div>
+    <div class="eq">${sym('m','b','c-m')} ${op('=')} <span class="sym">[<i>r</i><sub>b</sub>]<i class="c-f">f</i><sub class="c-f">b</sub></span> ${op('=')} ${mx(skew(rb))} ${mx(fb,()=>'cf')} ${op('=')} ${mx(mb,()=>'cm')}</div>
+    ${rows(rb,fb,mb)}
+    <div class="chips">
+      <span class="chip ok">m<sub>b</sub> · r<sub>b</sub> = <span class="n">${fmt(dot(mb,rb),3)}</span></span>
+      <span class="chip ok">m<sub>b</sub> · f<sub>b</sub> = <span class="n">${fmt(dot(mb,fb),3)}</span></span>
+      <span class="chip">‖m<sub>b</sub>‖ = <span class="n">${fmt(nrm(mb))}</span></span>
+    </div>
+    <p class="note">${fsTxt ? 'The force is fixed in {s}, so its body coordinates come from rotating it back: <i>f</i><sub>b</sub> = <i>R</i><sub>sb</sub><sup>T</sup><i>f</i><sub>s</sub>. Rotate the body and watch <i>f</i><sub>b</sub> change.' : 'The force is fixed in {b}, so <i>f</i><sub>b</sub> is exactly what you set. Rotate the body and <i>m</i><sub>b</sub> stays constant.'}</p>`;
+
+  $('c-space').innerHTML = `
+    <h3>Torque in the space frame {s}</h3>
+    <p class="note">The same point and force expressed in {s}. The moment is now taken about the {s} origin, so the lever arm is <i>r</i><sub>s</sub>, not <i>r</i><sub>b</sub>.</p>
+    <div class="eq">${sym('r','s')} ${op('=')} <span class="sym"><i>p</i> + <i>R</i><sub>sb</sub><i>r</i><sub>b</sub></span> ${op('=')} ${mx(p)} ${op('+')} ${mx(R,colRGB)} ${mx(rb)} ${op('=')} ${mx(rs)}</div>
+    <div class="eq">${sym('f','s','c-f')} ${op('=')} <span class="sym"><i>R</i><sub>sb</sub><i>f</i><sub>b</sub></span> ${op('=')} ${mx(R,colRGB)} ${mx(fb,()=>'cf')} ${op('=')} ${mx(fs,()=>'cf')}</div>
+    <div class="subh">Moment about the {s} origin</div>
+    <div class="eq">${sym('m','s','c-m')} ${op('=')} <span class="sym">[<i>r</i><sub>s</sub>]<i class="c-f">f</i><sub class="c-f">s</sub></span> ${op('=')} ${mx(skew(rs))} ${mx(fs,()=>'cf')} ${op('=')} ${mx(ms,()=>'cm')}</div>
+    ${rows(rs,fs,ms)}
+    <div class="chips">
+      <span class="chip ok">m<sub>s</sub> · r<sub>s</sub> = <span class="n">${fmt(dot(ms,rs),3)}</span></span>
+      <span class="chip ok">m<sub>s</sub> · f<sub>s</sub> = <span class="n">${fmt(dot(ms,fs),3)}</span></span>
+      <span class="chip">‖m<sub>s</sub>‖ = <span class="n">${fmt(nrm(ms))}</span></span>
+    </div>`;
+
+  const PR=mm(skew(p),R), PRt=tr(PR);
+  const AdT=[0,1,2].map(i=>[...Rt[i],...PRt[i]]).concat([0,1,2].map(i=>[0,0,0,...Rt[i]]));
+  const Fs=[...ms,...fs], Fb=mv(AdT,Fs);
+  const FbErr=Math.max(...Fb.map((x,i)=>Math.abs(x-[...mb,...fb][i])));
+  const Rtms=mv(Rt,ms), pxf=cross(p,fs), diff=mv(Rt,pxf);
+  const blk=(i,j)=> (i<3&&j<3)||(i>=3&&j>=3) ? 'bR' : (i<3&&j>=3 ? 'bP' : '');
+  const wcell=i=> i<3 ? 'cm' : 'cf';
+  $('c-wrench').innerHTML = `
+    <h3>Wrenches: moving between frames</h3>
+    <p class="note">Stack moment and force into a wrench <i>F</i> = (<i>m</i>, <i>f</i>). The adjoint of <i>T</i><sub>sb</sub> changes both the coordinates and the reference point in one step.</p>
+    <div class="eq"><span class="sym">[Ad<sub><i>T</i><sub>sb</sub></sub>] = </span>${mx([['R','0'],['[p]R','R']])} <span class="op">,</span> <span class="sym"><i>F</i><sub>b</sub> = [Ad<sub><i>T</i><sub>sb</sub></sub>]<sup>T</sup> <i>F</i><sub>s</sub></span></div>
+    <div class="eq">${mx(Fb,wcell)} ${op('=')} ${mx(AdT,blk)} ${mx(Fs,wcell)}</div>
+    <div class="chips"><span class="chip ${FbErr<1e-9?'ok':''}">result matches (m<sub>b</sub>, f<sub>b</sub>) from the {b} card</span></div>
+    <div class="subh">Why not just rotate m<sub>s</sub>?</div>
+    <div class="eq"><span class="sym"><i>m</i><sub>b</sub> = <i>R</i><sub>sb</sub><sup>T</sup>(<i>m</i><sub>s</sub> − [<i>p</i>]<i>f</i><sub>s</sub>)</span></div>
+    <div class="eq"><span class="sym"><i>R</i><sub>sb</sub><sup>T</sup><i>m</i><sub>s</sub></span> ${op('=')} ${mx(Rtms)} ${op('−')} <span class="sym"><i>R</i><sub>sb</sub><sup>T</sup>(<i>p</i> × <i>f</i><sub>s</sub>)</span> ${op('=')} ${mx(diff)} ${op('=')} ${mx(sub(Rtms,diff),()=>'cm')} ${op('=')} ${sym('m','b','c-m')}</div>
+    <p class="note"><i>m</i><sub>s</sub> is the moment about the {s} origin and <i>m</i><sub>b</sub> the moment about the {b} origin. Rotating <i>m</i><sub>s</sub> only changes its coordinates. Shifting the reference point by <i>p</i> also removes <i>p</i> × <i>f</i>. The two agree only when <i>p</i> × <i>f</i><sub>s</sub> = 0${nrm(pxf)<1e-3?' (true right now)':` (right now ‖p × f<sub>s</sub>‖ = ${fmt(nrm(pxf))})`}. The force part is simpler: <i>f</i><sub>b</sub> = <i>R</i><sub>sb</sub><sup>T</sup><i>f</i><sub>s</sub>.</p>`;
+}
+
+/* ---------- controls ---------- */
+const sliders=[];
+let coarse=true;
+const snapTo=(v,st)=>Math.round(v/st)*st;
+function slider(parent,{id,label,min,max,step,big,get,set,dec=2,before=null}){
+  const row=document.createElement('div'); row.className='sl';
+  row.innerHTML=`<label for="${id}">${label}</label><button type="button" class="stp" aria-label="Step down by ${big}">−</button><input type="range" id="${id}" min="${min}" max="${max}" step="${coarse?big:step}"><button type="button" class="stp" aria-label="Step up by ${big}">+</button><input type="number" class="num" id="${id}-n" min="${min}" max="${max}" step="${step}" aria-label="Exact value">`;
+  parent.insertBefore(row,before);
+  const [dn,up]=row.querySelectorAll('.stp'), input=row.querySelector('input[type=range]'), num=row.querySelector('.num');
+  const s={input,num,big,step,sync(){input.value=get(); num.value=(+get()).toFixed(dec);}};
+  const setVal=v=>{
+    v=Math.min(max,Math.max(min,snapTo(v,step)));
+    if(id==='th'&&spinning) toggleSpin();
+    set(+v.toFixed(6)); s.sync(); dirty=true;
+  };
+  input.addEventListener('input',()=>setVal(+input.value));
+  num.addEventListener('change',()=>{ if(num.value!=='' && isFinite(+num.value)) setVal(+num.value); else s.sync(); });
+  // +/− jump to the next multiple of the coarse step
+  up.addEventListener('click',()=>setVal(Math.floor(get()/big+1e-6)*big+big));
+  dn.addEventListener('click',()=>setVal(Math.ceil(get()/big-1e-6)*big-big));
+  sliders.push(s); return s;
+}
+const syncAll=()=>sliders.forEach(s=>s.sync());
+$('coarse').addEventListener('change',e=>{coarse=e.target.checked; sliders.forEach(s=>s.input.step=coarse?s.big:s.step); syncAll();});
+const XYZ=['x','y','z'];
+XYZ.forEach((a,i)=>slider($('g-p'),{id:'p'+a,label:`p<sub>${a}</sub>`,min:-2.5,max:2.5,step:0.05,big:0.25,get:()=>S.p[i],set:v=>S.p[i]=v}));
+const axRow=$('g-rot').querySelector('.axrow');
+slider($('g-rot'),{id:'az',label:'φ (°)',min:-180,max:180,step:1,big:15,dec:0,get:()=>S.az,set:v=>S.az=v,before:axRow});
+slider($('g-rot'),{id:'el',label:'λ (°)',min:-90,max:90,step:1,big:15,dec:0,get:()=>S.el,set:v=>S.el=v,before:axRow});
+slider($('g-rot'),{id:'th',label:'θ (°)',min:-180,max:180,step:1,big:15,dec:0,get:()=>S.th,set:v=>S.th=v,before:axRow});
+const hint=document.createElement('p'); hint.className='hint';
+hint.textContent='φ is the azimuth of the axis ω̂ in the xy-plane, λ its elevation toward z, θ the angle turned about it.';
+$('g-rot').appendChild(hint);
+slider($('g-w'),{id:'rate',label:'θ̇ (°/s)',min:-180,max:180,step:1,big:15,dec:0,get:()=>S.rate,set:v=>S.rate=v,before:$('g-w').querySelector('.btnrow')});
+XYZ.forEach((a,i)=>slider($('g-r'),{id:'r'+a,label:`r<sub>${a}</sub>`,min:-1,max:1,step:0.05,big:0.25,get:()=>S.rb[i],set:v=>S.rb[i]=v,before:$('g-r').querySelector('.axrow')}));
+XYZ.forEach((a,i)=>slider($('g-f'),{id:'f'+a,label:`f<sub>${a}</sub>`,min:-2,max:2,step:0.05,big:0.25,get:()=>S.f[i],set:v=>S.f[i]=v}));
+
+const after=()=>{updateForceUI(); syncAll(); dirty=true;};
+// axis presets as [azimuth, elevation]
+const AX={'+x':[0,0],'-x':[180,0],'+y':[90,0],'-y':[-90,0],'+z':[0,90],'-z':[0,-90],d:[45,35.26]};
+document.querySelectorAll('[data-axis]').forEach(b=>b.addEventListener('click',()=>{ [S.az,S.el]=AX[b.dataset.axis]; after(); }));
+const RB={o:[0,0,0],x:[HALF[0],0,0],y:[0,HALF[1],0],z:[0,0,HALF[2]],c:HALF.slice()};
+document.querySelectorAll('[data-rb]').forEach(b=>b.addEventListener('click',()=>{ S.rb=RB[b.dataset.rb].slice(); after(); }));
+document.querySelectorAll('[data-fa]').forEach(b=>b.addEventListener('click',()=>{
+  const k=b.dataset.fa;
+  if(k==='0'){ S.f=[0,0,0]; after(); return; }
+  const mag=Math.max(0.25,snapTo(nrm(S.f),0.25)||1.25), v=[0,0,0];
+  v['xyz'.indexOf(k[1])] = k[0]==='-' ? -mag : mag;
+  S.f=v; after();
+}));
+const say=h=>{$('exp-text').innerHTML=h;};
+$('q-coinc').addEventListener('click',()=>{ S.p=[0,0,0]; S.th=0; if(spinning) toggleSpin(); after(); say('{b} and {s} coincide: p = 0 and R<sub>sb</sub> = I. Now r<sub>s</sub> = r<sub>b</sub>, f<sub>s</sub> = f<sub>b</sub> and m<sub>s</sub> = m<sub>b</sub>. Change one thing at a time from here.'); });
+$('q-origin').addEventListener('click',()=>{ S.p=[0,0,0]; after(); say('The body origin sits on the {s} origin (p = 0). Both torques are now about the same point, so m<sub>b</sub> = R<sub>sb</sub><sup>T</sup>m<sub>s</sub> exactly: only the coordinates differ.'); });
+$('q-norot').addEventListener('click',()=>{ S.th=0; if(spinning) toggleSpin(); after(); say('R<sub>sb</sub> = I: the axes of {b} are parallel to those of {s}. Vectors have the same coordinates in both frames, but m<sub>s</sub> and m<sub>b</sub> still differ by p × f.'); });
+$('q-clean').addEventListener('click',()=>{ S.p=[0,0,0]; S.th=0; S.rb=[0,0,0]; S.fFrame='s'; S.f=[1.25,0,0]; if(spinning) toggleSpin(); after(); say('Everything at the origin and aligned with x: no lever arm, so no torque. Press + on r<sub>y</sub> and watch m appear along −z, because ŷ × x̂ = −ẑ.'); });
+
+function setForceFrame(fr){
+  if(fr===S.fFrame) return;
+  compute();
+  S.f = (fr==='s' ? C.fs : C.fb).map(x=>Math.round(x*100)/100);
+  S.fFrame=fr; after();
+}
+function updateForceUI(){
+  $('ff-s').setAttribute('aria-pressed',S.fFrame==='s');
+  $('ff-b').setAttribute('aria-pressed',S.fFrame==='b');
+  $('f-title').innerHTML = S.fFrame==='s' ? '<i>f</i><sub>s</sub> in {<i>s</i>}' : '<i>f</i><sub>b</sub> in {<i>b</i>}';
+  $('f-along').innerHTML = S.fFrame==='s' ? 'f along {s}' : 'f along {b}';
+}
+$('ff-s').addEventListener('click',()=>setForceFrame('s'));
+$('ff-b').addEventListener('click',()=>setForceFrame('b'));
+function toggleSpin(){
+  spinning=!spinning; $('spin').setAttribute('aria-pressed',spinning);
+  $('spin').textContent = spinning ? 'Stop spinning' : 'Spin about ω̂';
+}
+$('spin').addEventListener('click',toggleSpin);
+$('reset').addEventListener('click',()=>{
+  Object.assign(S,JSON.parse(JSON.stringify(DEFAULT))); if(spinning) toggleSpin();
+  after(); say('Back to the starting pose.');
+});
+[['t-r','r'],['t-m','m'],['t-w','w'],['t-g','g']].forEach(([id,k])=>$(id).addEventListener('change',e=>{show[k]=e.target.checked; dirty=true;}));
+
+/* ---------- experiments ---------- */
+const EXPS=[
+  {name:'Push through the {b} origin', go(){S.rb=[0,0,0]; S.fFrame='s'; S.f=[0,1.25,0];},
+   text:'The push point is the {b} origin, so r<sub>b</sub> = 0 and [r<sub>b</sub>] is the zero matrix: <b>m<sub>b</sub> = 0</b>. About the {s} origin the same force still has lever arm r<sub>s</sub> = p, so m<sub>s</sub> = p × f<sub>s</sub> ≠ 0. Torque always depends on the reference point.'},
+  {name:'Push along the lever arm', go(){S.rb=[0.75,0,0]; S.fFrame='b'; S.f=[1.5,0,0];},
+   text:'f<sub>b</sub> is parallel to r<sub>b</sub>, so [r<sub>b</sub>]f<sub>b</sub> = 0 (each row of the skew product cancels). m<sub>s</sub> is not zero, because r<sub>s</sub> is not parallel to f<sub>s</sub>. Slide p toward the line of action to make it vanish too.'},
+  {name:'Gravity on a tipping body', go(){S.rb=[0.75,0,0.25]; S.fFrame='s'; S.f=[0,0,-1.5]; S.az=90; S.el=0; S.th=0; if(!spinning) toggleSpin();},
+   text:'The force is fixed in {s}, like a weight. The body spins about ŷ: f<sub>s</sub> stays (0, 0, −1.5) while f<sub>b</sub> = R<sub>sb</sub><sup>T</sup>f<sub>s</sub> keeps changing. In the body view, gravity appears to swing around the box.'},
+  {name:'Thruster on a spinning body', go(){S.rb=[0.75,0,0]; S.fFrame='b'; S.f=[0,1.25,0]; S.az=0; S.el=90; S.th=0; if(!spinning) toggleSpin();},
+   text:'The force is fixed in {b}, like a thruster bolted to the box. m<sub>b</sub> = r<sub>b</sub> × f<sub>b</sub> stays constant, while f<sub>s</sub> = R<sub>sb</sub>f<sub>b</sub> rotates and m<sub>s</sub> keeps changing.'},
+  {name:'Half turn', go(){S.th=180; S.az=45; S.el=35.26; if(spinning) toggleSpin();},
+   text:'At θ = 180° the sin θ term vanishes and Rodrigues gives R = I + 2[ω̂]². The result is symmetric: R = R<sup>T</sup>, so a half turn is its own inverse.'},
+];
+EXPS.forEach(e=>{
+  const b=document.createElement('button'); b.type='button'; b.textContent=e.name;
+  b.addEventListener('click',()=>{ if(spinning && !/spinning|tipping/.test(e.name)) toggleSpin(); e.go(); after(); $('exp-text').innerHTML=e.text; dirty=true; });
+  $('exps').appendChild(b);
+});
+
+/* ---------- 3D ---------- */
+let TOK={};
+function readTokens(){
+  const cs=getComputedStyle(document.documentElement);
+  ['scene','grid','ink','muted','x','y','z','force','torque','axis','surface2','rule'].forEach(k=>TOK[k]=cs.getPropertyValue('--'+k).trim()||'#888');
+}
+readTokens();
+const views=[];
+const UP=new THREE.Vector3(0,1,0);
+
+function makeView(canvas,isBody){
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  const scene=new THREE.Scene();
+  const cam=new THREE.PerspectiveCamera(38,4/3,0.05,200); cam.up.set(0,0,1);
+  const ctl=new THREE.OrbitControls(cam,canvas); ctl.enableDamping=true;
+  if(isBody){cam.position.set(3.4,-4.6,2.8); ctl.target.set(0,0,0);} else {cam.position.set(6.8,-8,5.6); ctl.target.set(0.9,0.4,0.3);}
+  ctl.update();
+  scene.add(new THREE.AmbientLight(0xffffff,0.62));
+  const dl=new THREE.DirectionalLight(0xffffff,0.55); dl.position.set(3,-5,8); scene.add(dl);
+  const root=new THREE.Group(); root.matrixAutoUpdate=false; scene.add(root);
+  const body=new THREE.Group(); body.matrixAutoUpdate=false; root.add(body);
+  const mats={}, labels=[];
+  const mat=(k,Type=THREE.MeshLambertMaterial,o={})=>{const m=new Type(o); m.userData.k=k; (mats[k]=mats[k]||[]).push(m); return m;};
+
+  function Arrow(k,sr=0.03,hr=0.085,hl=0.22){
+    const g=new THREE.Group(), m=mat(k);
+    const shaft=new THREE.Mesh(new THREE.CylinderGeometry(sr,sr,1,14),m);
+    const head=new THREE.Mesh(new THREE.ConeGeometry(hr,hl,18),m);
+    g.add(shaft,head);
+    return {g,set(o,v){
+      const L=nrm(v); g.userData.len=L;
+      if(L<1e-3){g.visible=false;return;} g.visible=g.userData.on!==false;
+      g.position.set(...o);
+      g.quaternion.setFromUnitVectors(UP,new THREE.Vector3(...v).divideScalar(L));
+      const h=Math.min(hl,L*0.45), s=L-h;
+      shaft.scale.set(1,Math.max(s,1e-4),1); shaft.position.y=s/2;
+      head.scale.set(h/hl,h/hl,h/hl); head.position.y=s+h/2;
+    }};
+  }
+  function DLine(k,dash=0.09,gap=0.06){
+    const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
+    const line=new THREE.Line(geo,mat(k,THREE.LineDashedMaterial,{dashSize:dash,gapSize:gap}));
+    return {line,set(a,b){const P=geo.attributes.position; P.setXYZ(0,...a); P.setXYZ(1,...b); P.needsUpdate=true; geo.computeBoundingSphere(); line.computeLineDistances();}};
+  }
+  function Label(main,subTxt,k,size=0.42){
+    const cv=document.createElement('canvas'); cv.width=256; cv.height=128;
+    const tex=new THREE.CanvasTexture(cv);
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
+    sp.scale.set(size,size/2,1); sp.renderOrder=10;
+    const L={sp,draw(){
+      const c=cv.getContext('2d'); c.clearRect(0,0,256,128);
+      c.textBaseline='middle'; c.lineJoin='round';
+      const mainF="italic 600 64px 'STIX Two Text', 'Times New Roman', serif", subF="400 40px 'STIX Two Text', 'Times New Roman', serif";
+      c.font=mainF; const w1=c.measureText(main).width; c.font=subF; const w2=subTxt?c.measureText(subTxt).width+2:0;
+      let x=(256-w1-w2)/2;
+      const paint=(txt,font,xx,yy)=>{c.font=font; c.lineWidth=10; c.strokeStyle=TOK.scene; c.strokeText(txt,xx,yy); c.fillStyle=TOK[k]; c.fillText(txt,xx,yy);};
+      paint(main,mainF,x,60); if(subTxt) paint(subTxt,subF,x+w1+2,80);
+      tex.needsUpdate=true;
+    }};
+    L.draw(); labels.push(L); return L;
+  }
+  function Axes(len,r,tag,parent){
+    const out={};
+    ['x','y','z'].forEach((a,i)=>{
+      const A=Arrow(a,r,r*2.6,len*0.2); const v=[0,0,0]; v[i]=len; A.set([0,0,0],v); parent.add(A.g);
+      const lb=Label(a,tag,a,0.36); const pos=[0,0,0]; pos[i]=len+0.14; lb.sp.position.set(...pos); parent.add(lb.sp);
+    });
+    const o=new THREE.Mesh(new THREE.SphereGeometry(r*1.9,16,12),mat('ink')); parent.add(o);
+    return out;
+  }
+  // grid in {s}
+  let grid=null;
+  function makeGrid(){
+    if(grid){root.remove(grid); grid.geometry.dispose(); grid.material.dispose();}
+    grid=new THREE.GridHelper(10,20,new THREE.Color(TOK.grid),new THREE.Color(TOK.grid));
+    grid.rotation.x=Math.PI/2; grid.position.z=-0.001; root.add(grid);
+  }
+  makeGrid();
+  Axes(1.4,0.035,'s',root);
+  const sLab=Label('{s}','', 'ink',0.5); sLab.sp.position.set(-0.28,-0.28,0.2); root.add(sLab.sp);
+  Axes(0.9,0.028,'b',body);
+  const bLab=Label('{b}','','ink',0.5); bLab.sp.position.set(-0.25,-0.25,-0.3); body.add(bLab.sp);
+  // box
+  const boxGeo=new THREE.BoxGeometry(2*HALF[0],2*HALF[1],2*HALF[2]);
+  const boxM=mat('box',THREE.MeshLambertMaterial,{transparent:true,opacity:0.32,depthWrite:false});
+  body.add(new THREE.Mesh(boxGeo,boxM));
+  body.add(new THREE.LineSegments(new THREE.EdgesGeometry(boxGeo),mat('ink',THREE.LineBasicMaterial,{transparent:true,opacity:0.7})));
+  const pt=new THREE.Mesh(new THREE.SphereGeometry(0.055,16,12),mat('force')); body.add(pt);
+  // vectors
+  const fA=Arrow('force',0.035,0.1,0.25), mbA=Arrow('torque',0.035,0.1,0.25), msA=Arrow('torque',0.035,0.1,0.25);
+  body.add(fA.g,mbA.g); root.add(msA.g);
+  const wA=Arrow('axis',0.03,0.09,0.22); root.add(wA.g); const wvLab=Label('ω','s','axis',0.4); root.add(wvLab.sp);
+  const rbL=DLine('ink'), rsL=DLine('ink'), pL=DLine('muted'), wL=DLine('axis',0.05,0.07);
+  body.add(rbL.line); root.add(rsL.line,pL.line,wL.line);
+  const fLab=Label('f','','force'), mbLab=Label('m','b','torque'), msLab=Label('m','s','torque');
+  const rbLab=Label('r','b','ink',0.36), rsLab=Label('r','s','ink',0.36), pLab=Label('p','','muted',0.36), wLab=Label('ω̂','','axis',0.4);
+  body.add(fLab.sp,mbLab.sp,rbLab.sp); root.add(msLab.sp,rsLab.sp,pLab.sp,wLab.sp);
+
+  const T=new THREE.Matrix4(), Ti=new THREE.Matrix4();
+  const V={renderer,scene,cam,ctl,needs:true,
+    update(){
+      const {R,p,rb,rs,fb,mb,ms,w}=C;
+      T.set(R[0][0],R[0][1],R[0][2],p[0], R[1][0],R[1][1],R[1][2],p[1], R[2][0],R[2][1],R[2][2],p[2], 0,0,0,1);
+      body.matrix.copy(T);
+      if(isBody){Ti.copy(T).invert(); root.matrix.copy(Ti);} else root.matrix.identity();
+      root.matrixWorldNeedsUpdate=true;
+      pt.position.set(...rb);
+      fA.set(rb,fb); fLab.sp.position.set(...add(rb,scl(fb,1.12)));
+      fLab.sp.visible=fA.g.visible;
+      mbA.g.userData.on=show.m; msA.g.userData.on=show.m;
+      mbA.set([0,0,0],scl(mb,0.5)); msA.set([0,0,0],scl(ms,0.5));
+      mbLab.sp.position.set(...scl(mb,0.5*1.1+0.12/Math.max(nrm(mb),1e-3))); mbLab.sp.visible=show.m&&mbA.g.visible;
+      msLab.sp.position.set(...scl(ms,0.5*1.1+0.12/Math.max(nrm(ms),1e-3))); msLab.sp.visible=show.m&&msA.g.visible;
+      rbL.set([0,0,0],rb); rsL.set([0,0,0],rs); pL.set([0,0,0],p);
+      rbLab.sp.position.set(...scl(rb,0.5)); rsLab.sp.position.set(...add(scl(rs,0.5),[0,0,0.14])); pLab.sp.position.set(...add(scl(p,0.5),[0,0,-0.14]));
+      [rbL.line,rsL.line,pL.line].forEach(l=>l.visible=show.r);
+      rbLab.sp.visible=show.r&&nrm(rb)>0.15; rsLab.sp.visible=show.r; pLab.sp.visible=show.r&&nrm(p)>0.2;
+      wL.set(sub(p,scl(w,1.5)),add(p,scl(w,1.5))); wL.line.visible=show.w;
+      wA.g.userData.on=show.w; wA.set(p,scl(C.ws,0.8)); wvLab.sp.position.set(...add(p,add(scl(C.ws,0.8),[0.15,0.15,0]))); wvLab.sp.visible=show.w&&wA.g.visible;
+      wLab.sp.position.set(...add(p,scl(w,1.68))); wLab.sp.visible=show.w;
+      grid.visible=show.g;
+      V.needs=true;
+    },
+    theme(){
+      renderer.setClearColor(new THREE.Color(TOK.scene),1);
+      Object.entries(mats).forEach(([k,list])=>list.forEach(m=>m.color.set(k==='box'?TOK.surface2:TOK[k])));
+      makeGrid(); labels.forEach(l=>l.draw()); V.needs=true;
+    },
+    resize(){
+      const w=canvas.clientWidth,h=canvas.clientHeight; if(!w||!h) return;
+      renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); V.needs=true;
+    },
+    render(){ if(ctl.update()) V.needs=true; if(V.needs){renderer.render(scene,cam); V.needs=false;} }
+  };
+  ctl.addEventListener('change',()=>{V.needs=true;});
+  V.theme(); V.resize();
+  new ResizeObserver(()=>V.resize()).observe(canvas);
+  return V;
+}
+
+let ok3d=true;
+try{ views.push(makeView($('cv-s'),false), makeView($('cv-b'),true)); }
+catch(e){ ok3d=false; document.querySelectorAll('.view').forEach(v=>v.insertAdjacentHTML('beforeend','<p style="position:absolute;inset:auto 12px 12px;color:var(--muted);font-size:13px">3D view unavailable: this browser could not start WebGL. The live math below still works.</p>')); }
+
+function applyTheme(){ readTokens(); views.forEach(v=>v.theme()); }
+try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme); }catch(e){}
+new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(applyTheme);
+
+/* ---------- loop ---------- */
+updateForceUI(); syncAll();
+let last=performance.now(), mathT=0;
+function frame(t){
+  const dt=Math.min((t-last)/1000,0.1); last=t;
+  if(spinning){
+    S.th+=S.rate*dt; if(S.th>180) S.th-=360; if(S.th<-180) S.th+=360;
+    sliders.find(s=>s.input.id==='th').sync(); dirty=true;
+  }
+  if(dirty){
+    compute(); views.forEach(v=>v.update());
+    if(!spinning || t-mathT>90){ renderMath(); mathT=t; }
+    dirty=false;
+  }
+  views.forEach(v=>v.render());
+  requestAnimationFrame(frame);
+}
+compute(); renderMath();
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
