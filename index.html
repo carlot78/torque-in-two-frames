@@ -3,16 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Interactive 3D lab for rotation matrices, skew-symmetric matrices, torque and wrenches, seen from the space frame {s} and the body frame {b}.">
+<meta name="description" content="Interactive 3D lab for Modern Robotics chapter 3: rotations, homogeneous transformations, twists, screw axes, exponential coordinates and wrenches, seen from the space frame {s} and the body frame {b}.">
 <title>Torque in Two Frames</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,400;1,400;1,600&display=swap">
 <style>
 :root{
+  color-scheme:light;
   --bg:#EBEFF2; --surface:#FAFBFC; --surface2:#F1F4F6; --ink:#15202B; --muted:#5A6673; --rule:#CCD4DB;
   --scene:#F7F9FA; --grid:#D3DAE0; --btn:#15202B; --btn-ink:#FFFFFF;
-  --x:#D6423A; --y:#2A9346; --z:#2E6CD4; --force:#DD7410; --torque:#BE2F80; --axis:#6A5ACD;
+  --x:#D6423A; --y:#2A9346; --z:#2E6CD4; --force:#DD7410; --torque:#BE2F80; --axis:#6A4FD0; --vel:#0B8C8C;
   --ok:#2A8A4A; --blk:#E4E9EE; --blk2:#F3E6EE;
   --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --cond:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
@@ -24,7 +25,7 @@
     color-scheme:dark;
     --bg:#0E1318; --surface:#151C23; --surface2:#1B242D; --ink:#E3E9EE; --muted:#93A1AE; --rule:#2A3643;
     --scene:#10171D; --grid:#25313C; --btn:#E3E9EE; --btn-ink:#0E1318;
-    --x:#F0605A; --y:#4CC46A; --z:#5E95F2; --force:#F79B3C; --torque:#E65BAA; --axis:#9C8EF0;
+    --x:#F0605A; --y:#4CC46A; --z:#5E95F2; --force:#F79B3C; --torque:#E65BAA; --axis:#A391F5; --vel:#3CCACA;
     --ok:#4CC46A; --blk:#1F2A34; --blk2:#2E1F2A;
   }
 }
@@ -32,43 +33,24 @@
   color-scheme:dark;
   --bg:#0E1318; --surface:#151C23; --surface2:#1B242D; --ink:#E3E9EE; --muted:#93A1AE; --rule:#2A3643;
   --scene:#10171D; --grid:#25313C; --btn:#E3E9EE; --btn-ink:#0E1318;
-  --x:#F0605A; --y:#4CC46A; --z:#5E95F2; --force:#F79B3C; --torque:#E65BAA; --axis:#9C8EF0;
+  --x:#F0605A; --y:#4CC46A; --z:#5E95F2; --force:#F79B3C; --torque:#E65BAA; --axis:#A391F5; --vel:#3CCACA;
   --ok:#4CC46A; --blk:#1F2A34; --blk2:#2E1F2A;
 }
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans)}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans)}
+[hidden]{display:none!important}
+img{max-width:100%}
 .wrap{max-width:1480px;margin:0 auto;padding-inline:20px;padding-block:22px 56px}
 header{display:grid;gap:6px;margin-bottom:18px;max-width:900px}
 .eyebrow{font:600 11px/1 var(--cond);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 h1{font:700 clamp(26px,3.4vw,38px)/1.05 var(--cond);letter-spacing:-.01em;margin:0;text-wrap:balance}
-header p{margin:0;color:var(--muted);max-width:75ch}
+header p{margin:0;color:var(--muted);max-width:80ch}
 .sym{font-family:var(--math);font-size:1.12em;white-space:nowrap}
 .sym i{font-style:italic}
 .sym sub,.sym sup{font-family:var(--math);font-size:.72em;font-style:normal}
-.c-f{color:var(--force)} .c-m{color:var(--torque)} .c-x{color:var(--x)} .c-y{color:var(--y)} .c-z{color:var(--z)} .c-a{color:var(--axis)}
+.c-f{color:var(--force)} .c-m{color:var(--torque)} .c-x{color:var(--x)} .c-y{color:var(--y)} .c-z{color:var(--z)} .c-a{color:var(--axis)} .c-v{color:var(--vel)}
 
-.app{display:grid;grid-template-columns:344px minmax(0,1fr);grid-template-areas:"ctl views" "ctl math";gap:18px;align-items:start}
-.controls{grid-area:ctl;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);max-height:calc(100vh - 24px);overflow:auto;
-  background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;display:grid;gap:16px}
-.stage{grid-area:views;display:grid;gap:10px;min-width:0}
-.mathwrap{grid-area:math;min-width:0}
-@media (max-width:1000px){
-  .app{grid-template-columns:minmax(0,1fr);grid-template-areas:"views" "ctl" "math"}
-  .controls{position:static;max-height:none}
-}
-
-.grp{display:grid;gap:6px}
-.grp h2{font:600 12px/1.2 var(--cond);letter-spacing:.1em;text-transform:uppercase;margin:0;color:var(--muted);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.grp h2 .sym{text-transform:none;letter-spacing:0;color:var(--ink);font-size:14px}
-.sl{display:grid;grid-template-columns:58px 24px minmax(0,1fr) 24px 56px;align-items:center;gap:5px}
-.sl label{font:13px var(--math);font-style:italic;white-space:nowrap}
-.sl .stp{padding:0;height:24px;width:24px;font:500 15px/1 var(--mono);display:grid;place-items:center}
-.sl .num{width:100%;font:12px var(--mono);font-variant-numeric:tabular-nums;text-align:right;padding:3px 4px;border:1px solid var(--rule);border-radius:4px;background:var(--surface2);color:var(--ink)}
-.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.qgrid button{text-align:left;line-height:1.25;padding:7px 8px}
-.qgrid small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
-.qgrid .zero{grid-column:1/-1}
-.qgrid .zero small{color:inherit;opacity:.75}
 .tblock{display:flex;flex-wrap:wrap;margin-bottom:16px;border:1px solid var(--rule);border-radius:6px;background:var(--surface);width:fit-content;max-width:100%}
 .tblock div{display:grid;gap:1px;padding:6px 14px;border-right:1px solid var(--rule)}
 .tblock div:last-child{border-right:0}
@@ -76,24 +58,55 @@ header p{margin:0;color:var(--muted);max-width:75ch}
 .tblock b{font:500 13px/1.3 var(--mono);font-variant-numeric:tabular-nums}
 .tblock a{color:inherit;text-decoration-color:var(--rule);text-underline-offset:3px}
 .tblock a:hover{text-decoration-color:currentColor}
-.axrow{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
-.axrow button{padding:5px 7px;font:600 12px/1 var(--mono)}
-.axrow button[data-rb],.axrow button[data-fa="0"],.axrow button[data-axis="d"]{font:500 12px/1 var(--sans)}
-.axlbl{font:italic 13px var(--math);color:var(--muted);margin-right:2px}
-.snap{display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer}
-.snap span{color:var(--muted)}
+
+.app{display:grid;grid-template-columns:352px minmax(0,1fr);grid-template-areas:"ctl views" "ctl math";gap:18px;align-items:start}
+.controls{grid-area:ctl;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);max-height:calc(100vh - 24px);overflow:auto;
+  background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;display:grid;gap:14px}
+.stage{grid-area:views;display:grid;gap:10px;min-width:0}
+.mathwrap{grid-area:math;min-width:0;display:grid;gap:22px}
+@media (max-width:1000px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-areas:"views" "ctl" "math"}
+  .controls{position:static;max-height:none}
+}
+.panel{display:grid;gap:14px}
+.grp{display:grid;gap:6px}
+.grp h2{font:600 12px/1.2 var(--cond);letter-spacing:.1em;text-transform:uppercase;margin:0;color:var(--muted);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.grp h2 .sym{text-transform:none;letter-spacing:0;color:var(--ink);font-size:14px}
+.sl{display:grid;grid-template-columns:58px 24px minmax(0,1fr) 24px 56px;align-items:center;gap:5px}
+.sl label{font:13px var(--math);font-style:italic;white-space:nowrap}
+.sl .stp{padding:0;height:24px;width:24px;font:500 15px/1 var(--mono);display:grid;place-items:center}
+.sl .num{width:100%;font:12px var(--mono);font-variant-numeric:tabular-nums;text-align:right;padding:3px 4px;border:1px solid var(--rule);border-radius:4px;background:var(--surface2);color:var(--ink)}
 input[type=range]{width:100%;accent-color:var(--ink);margin:0}
 .btnrow{display:flex;flex-wrap:wrap;gap:6px}
 button{font:500 12.5px/1 var(--sans);color:var(--ink);background:var(--surface2);border:1px solid var(--rule);border-radius:5px;padding:7px 10px;cursor:pointer}
 button:hover{border-color:var(--muted)}
-button:focus-visible,input:focus-visible{outline:2px solid var(--z);outline-offset:2px}
-button.primary{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
-button[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
-.seg{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--z);outline-offset:2px}
+button.primary,button[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
 .seg button{border:0;border-radius:0;padding:8px 6px;line-height:1.25;text-align:center}
 .seg button + button{border-left:1px solid var(--rule)}
 .seg small{display:block;font-size:11px;opacity:.75;margin-top:2px}
 .hint{font-size:12px;color:var(--muted);margin:0}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.qgrid button{text-align:left;line-height:1.25;padding:7px 8px}
+.qgrid small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.qgrid .wide{grid-column:1/-1}
+.qgrid .primary small{color:inherit;opacity:.75}
+.axrow{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.axrow button{padding:5px 7px;font:600 12px/1 var(--mono)}
+.axrow button.w{font:500 12px/1 var(--sans)}
+.axlbl{font:italic 13px var(--math);color:var(--muted);margin-right:2px}
+.snap{display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer}
+.snap span{color:var(--muted)}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--rule);border-radius:6px;overflow:hidden;position:sticky;top:-14px;z-index:2;background:var(--surface)}
+.tabs button{border:0;border-radius:0;padding:9px 4px;font:600 13px/1 var(--cond);letter-spacing:.04em}
+.tabs button + button{border-left:1px solid var(--rule)}
+.tabs button[aria-selected="true"]{background:var(--btn);color:var(--btn-ink)}
+.ops{border-collapse:collapse;width:100%;font-size:12px}
+.ops th{font:600 10.5px/1.2 var(--cond);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:0 0 4px}
+.ops td{padding:2px 0;white-space:nowrap}
+.ops td:first-child{color:var(--muted);padding-right:6px}
+.ops button{padding:4px 0;width:26px;font:600 12px/1 var(--mono)}
 
 .views{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media (max-width:700px){.views{grid-template-columns:1fr}}
@@ -103,23 +116,28 @@ button[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink);border-co
 .vlabel{position:absolute;left:10px;top:9px;pointer-events:none;display:grid;gap:1px}
 .vlabel b{font:700 14px/1.1 var(--cond);letter-spacing:.02em}
 .vlabel span{font-size:11.5px;color:var(--muted)}
+.vstate{position:absolute;right:10px;top:9px;font:500 11.5px/1.3 var(--mono);color:var(--muted);text-align:right;pointer-events:none}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:12.5px;color:var(--muted)}
 .legend .k{display:inline-flex;align-items:center;gap:6px}
 .sw{width:18px;height:4px;border-radius:2px;display:inline-block}
 .sw.dash{height:0;border-top:2px dashed var(--ink);background:none}
-.legend label{display:inline-flex;align-items:center;gap:5px;cursor:pointer;color:var(--ink)}
-.legend .sep{flex:1}
-
+.toggles{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px}
+.toggles label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
 .try{display:grid;gap:8px;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:12px 14px}
 .try-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.try-head .eyebrow{margin-right:4px}
 .try p{margin:0;max-width:95ch}
-.try p:empty{display:none}
 
-.math{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,470px),1fr));gap:12px}
+.chapnav{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chapnav a{font:600 12.5px/1 var(--cond);letter-spacing:.03em;color:var(--ink);text-decoration:none;border:1px solid var(--rule);background:var(--surface);border-radius:999px;padding:6px 11px}
+.chapnav a:hover{border-color:var(--muted)}
+.chap{display:grid;gap:10px;scroll-margin-top:12px}
+.chap > h2{margin:0;font:700 22px/1.15 var(--cond);display:flex;gap:10px;align-items:baseline;text-wrap:balance}
+.chap > h2 .num{font:500 15px/1 var(--mono);color:var(--muted)}
+.math{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr));gap:12px}
 .card{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;display:grid;gap:10px;min-width:0;align-content:start}
-.card h3{margin:0;font:700 17px/1.2 var(--cond);text-wrap:balance}
-.card .note{margin:0;color:var(--muted);font-size:13px;max-width:70ch}
+.card h3{margin:0;font:700 17px/1.2 var(--cond);text-wrap:balance;display:flex;gap:8px;align-items:baseline}
+.card h3 .num{font:500 12px/1 var(--mono);color:var(--muted)}
+.card .note{margin:0;color:var(--muted);font-size:13px;max-width:72ch}
 .eq{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;overflow-x:auto;padding-block:2px;font-family:var(--math);font-size:15px}
 .eq .op{font-family:var(--math);font-size:16px;padding-inline:1px}
 .eq .coef{font:12.5px var(--mono);font-variant-numeric:tabular-nums}
@@ -127,39 +145,37 @@ button[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink);border-co
 .mx::before,.mx::after{content:"";position:absolute;top:0;bottom:0;width:5px;border:1.5px solid var(--ink)}
 .mx::before{left:0;border-right:0}
 .mx::after{right:0;border-left:0}
-.mx-g{display:grid;column-gap:0}
+.mx-g{display:grid}
 .mx-g > span{text-align:right;padding:0 5px;white-space:nowrap}
 .mx-g > span.sy{font:italic 14px/1.35 var(--math);text-align:center}
 .mx .cx{color:var(--x)} .mx .cy{color:var(--y)} .mx .cz{color:var(--z)}
-.mx .cf{color:var(--force)} .mx .cm{color:var(--torque)}
-.mx .bR{background:var(--blk)} .mx .bP{background:var(--blk2)}
+.mx .cf{color:var(--force)} .mx .cm{color:var(--torque)} .mx .ca{color:var(--axis)} .mx .cv{color:var(--vel)}
+.mx .bR{background:var(--blk)} .mx .bP{background:var(--blk2)} .mx .dim{opacity:.55}
 .rows{display:grid;gap:3px;font-family:var(--math);font-size:14px;overflow-x:auto}
 .rows div{white-space:nowrap}
-.rows .n{font:12.5px var(--mono);font-variant-numeric:tabular-nums}
+.n{font:12.5px var(--mono);font-variant-numeric:tabular-nums}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font-size:12px;border:1px solid var(--rule);border-radius:999px;padding:3px 9px;background:var(--surface2);white-space:nowrap}
-.chip .n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.chip .n{font-size:12px}
 .chip.ok::before{content:"✓ ";color:var(--ok);font-weight:600}
-.chip.warn::before{content:"≠ ";color:var(--torque);font-weight:600}
+.chip.warn::before{content:"✗ ";color:var(--torque);font-weight:600}
 .subh{font:600 11px/1 var(--cond);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:4px}
-footer{margin-top:22px;color:var(--muted);font-size:12.5px;max-width:95ch}
-@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+footer{color:var(--muted);font-size:12.5px;max-width:95ch}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
 </style>
-<style>html{color-scheme:light}@media (prefers-color-scheme: dark){html{color-scheme:dark}}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
-
 <div class="wrap">
   <div class="tblock" aria-label="Document information">
     <div><span>Author</span><b>Carlo Tuzi</b></div>
     <div><span>Email</span><b><a href="mailto:carlo.tuzi@gmail.com">carlo.tuzi@gmail.com</a></b></div>
-    <div><span>Date</span><b><time datetime="2026-09-27">2026-09-27</time></b></div>
-    <div><span>Revision</span><b>Rev. 3</b></div>
+    <div><span>Date</span><b><time datetime="2026-09-28">2026-09-28</time></b></div>
+    <div><span>Revision</span><b>Rev. 4</b></div>
   </div>
   <header>
-    <div class="eyebrow">Rigid-body statics · space frame {s} and body frame {b}</div>
+    <div class="eyebrow">Modern Robotics · Chapter 3 · Rigid-body motions</div>
     <h1>Torque in Two Frames</h1>
-    <p>A box carries its own body frame <span class="sym">{<i>b</i>}</span>. A force <span class="sym c-f"><i>f</i></span> acts at a point <span class="sym"><i>r</i></span> on the box. Move the body, rotate it, move the push point, and watch the rotation matrix, the skew matrices and the torque <span class="sym c-m"><i>m</i> = <i>r</i> × <i>f</i> = [<i>r</i>]<i>f</i></span> update in both frames. Notation follows <em>Modern Robotics</em> (Lynch &amp; Park): <span class="sym">[<i>x</i>]</span> is the 3×3 skew-symmetric matrix of <span class="sym"><i>x</i></span>.</p>
+    <p>A box carries its own body frame <span class="sym">{<i>b</i>}</span>. Pose it, move it along a screw axis, push on it, and watch every quantity of chapter 3 update in the space frame <span class="sym">{<i>s</i>}</span> and the body frame: rotation matrices, angular velocities, exponential coordinates, homogeneous transformations, twists, screw axes and wrenches. Notation follows <em>Modern Robotics</em> (Lynch &amp; Park): <span class="sym">[<i>x</i>]</span> is the skew-symmetric matrix of <span class="sym"><i>x</i></span>, and <span class="sym">[𝒱]</span> the 4×4 matrix of a twist.</p>
   </header>
 
   <div class="app">
@@ -167,63 +183,124 @@ footer{margin-top:22px;color:var(--muted);font-size:12.5px;max-width:95ch}
       <div class="grp">
         <h2>Quick set</h2>
         <div class="qgrid">
-          <button type="button" id="q-zero" class="primary zero">Everything to zero<small>{b} = {s}, r<sub>b</sub> = 0, f = 0, θ = 0, θ̇ = 0</small></button>
+          <button type="button" id="q-zero" class="primary wide">Everything to zero<small>{b} = {s}, r<sub>b</sub> = 0, f = 0, no rotation, no twist</small></button>
           <button type="button" id="q-coinc">{b} = {s}<small>coincident frames</small></button>
           <button type="button" id="q-origin">Body at origin<small>p = 0, keep rotation</small></button>
           <button type="button" id="q-norot">No rotation<small>θ = 0, keep position</small></button>
           <button type="button" id="q-clean">Clean start<small>{b} = {s}, r<sub>b</sub> = 0, f ∥ x</small></button>
+          <button type="button" id="q-planar" class="wide">Make it planar (§3.1)<small>rotation about z, everything in the xy-plane</small></button>
         </div>
-        <label class="snap"><input type="checkbox" id="coarse" checked> Sliders snap to coarse steps <span id="coarse-hint">(0.25 · 15°)</span></label>
+        <label class="snap"><input type="checkbox" id="coarse" checked> Sliders snap to coarse steps <span>(0.25 · 15°)</span></label>
       </div>
-      <div class="grp" id="g-p">
-        <h2>Body position <span class="sym"><i>p</i> in {<i>s</i>}</span></h2>
+
+      <div class="tabs" role="tablist" aria-label="Control groups">
+        <button type="button" role="tab" id="tab-pose" aria-controls="pn-pose" aria-selected="true">Pose T<sub>sb</sub></button>
+        <button type="button" role="tab" id="tab-twist" aria-controls="pn-twist" aria-selected="false">Twist 𝒱</button>
+        <button type="button" role="tab" id="tab-force" aria-controls="pn-force" aria-selected="false">Force ℱ</button>
       </div>
-      <div class="grp" id="g-rot">
-        <h2>Body orientation <span class="sym">ω̂, <i>θ</i></span></h2>
-        <div class="axrow" aria-label="Rotation axis presets"><span class="axlbl">ω̂ along</span>
-          <button type="button" data-axis="+x" class="c-x">+x</button><button type="button" data-axis="-x" class="c-x">−x</button>
-          <button type="button" data-axis="+y" class="c-y">+y</button><button type="button" data-axis="-y" class="c-y">−y</button>
-          <button type="button" data-axis="+z" class="c-z">+z</button><button type="button" data-axis="-z" class="c-z">−z</button>
-          <button type="button" data-axis="d" title="(1,1,1)/√3">diag</button>
+
+      <div class="panel" id="pn-pose" role="tabpanel" aria-labelledby="tab-pose">
+        <div class="grp" id="g-p">
+          <h2>Position <span class="sym"><i>p</i> in {<i>s</i>}</span></h2>
         </div>
-      </div>
-      <div class="grp" id="g-w">
-        <h2>Angular speed <span class="sym"><i>θ̇</i></span></h2>
-        <div class="btnrow">
-          <button type="button" id="spin" class="primary" aria-pressed="false">Spin about ω̂</button>
-          <button type="button" id="reset">Reset all</button>
+        <div class="grp" id="g-rot">
+          <h2>Orientation <span class="sym">e<sup>[ω̂]θ</sup></span></h2>
+          <div class="axrow" aria-label="Rotation axis presets"><span class="axlbl">ω̂ along</span>
+            <button type="button" data-axis="+x" class="c-x">+x</button><button type="button" data-axis="-x" class="c-x">−x</button>
+            <button type="button" data-axis="+y" class="c-y">+y</button><button type="button" data-axis="-y" class="c-y">−y</button>
+            <button type="button" data-axis="+z" class="c-z">+z</button><button type="button" data-axis="-z" class="c-z">−z</button>
+            <button type="button" data-axis="d" class="w" title="(1,1,1)/√3">diag</button>
+          </div>
         </div>
-      </div>
-      <div class="grp" id="g-r">
-        <h2>Push point <span class="sym"><i>r</i><sub>b</sub> in {<i>b</i>}</span></h2>
-        <div class="axrow" aria-label="Push point presets"><span class="axlbl">r<sub>b</sub> at</span>
-          <button type="button" data-rb="o">{b} origin</button>
-          <button type="button" data-rb="x" class="c-x">+x face</button>
-          <button type="button" data-rb="y" class="c-y">+y face</button>
-          <button type="button" data-rb="z" class="c-z">+z face</button>
-          <button type="button" data-rb="c">corner</button>
-        </div>
-        <p class="hint">Fixed to the box, so it is set in body coordinates.</p>
-      </div>
-      <div class="grp" id="g-f">
-        <h2>Force <span class="sym c-f" id="f-title"></span></h2>
-        <div class="seg" role="group" aria-label="Frame the force is fixed in">
-          <button type="button" id="ff-s" aria-pressed="true">Fixed in {s}<small>like gravity</small></button>
-          <button type="button" id="ff-b" aria-pressed="false">Fixed in {b}<small>like a thruster</small></button>
-        </div>
-        <div class="axrow" aria-label="Force direction presets"><span class="axlbl" id="f-along">f along</span>
-          <button type="button" data-fa="+x" class="c-x">+x</button><button type="button" data-fa="-x" class="c-x">−x</button>
-          <button type="button" data-fa="+y" class="c-y">+y</button><button type="button" data-fa="-y" class="c-y">−y</button>
-          <button type="button" data-fa="+z" class="c-z">+z</button><button type="button" data-fa="-z" class="c-z">−z</button>
-          <button type="button" data-fa="0">zero</button>
+        <div class="grp">
+          <h2>Fixed frame or body frame?</h2>
+          <table class="ops">
+            <thead><tr><th></th><th>about {s} axes<br>T′ = Op · T</th><th>about {b} axes<br>T′ = T · Op</th></tr></thead>
+            <tbody id="ops"></tbody>
+          </table>
+          <p class="hint">Premultiplying acts along the fixed {s} axes; postmultiplying acts along the body's own axes. The result is shown in §3.3.1.</p>
         </div>
       </div>
+
+      <div class="panel" id="pn-twist" role="tabpanel" aria-labelledby="tab-twist" hidden>
+        <div class="grp">
+          <div class="seg" role="group" aria-label="Kind of motion">
+            <button type="button" id="tm-screw" aria-pressed="true">Screw motion<small>rotation + h · translation</small></button>
+            <button type="button" id="tm-trans" aria-pressed="false">Pure translation<small>h = ∞, ω = 0</small></button>
+          </div>
+        </div>
+        <div class="grp" id="g-s">
+          <h2>Axis direction <span class="sym" id="s-title">ŝ in {<i>s</i>}</span></h2>
+          <div class="axrow" aria-label="Screw direction presets"><span class="axlbl">ŝ along</span>
+            <button type="button" data-sdir="+x" class="c-x">+x</button><button type="button" data-sdir="-x" class="c-x">−x</button>
+            <button type="button" data-sdir="+y" class="c-y">+y</button><button type="button" data-sdir="-y" class="c-y">−y</button>
+            <button type="button" data-sdir="+z" class="c-z">+z</button><button type="button" data-sdir="-z" class="c-z">−z</button>
+            <button type="button" data-sdir="bx" class="w">x̂<sub>b</sub></button><button type="button" data-sdir="bz" class="w">ẑ<sub>b</sub></button>
+          </div>
+        </div>
+        <div class="grp" id="g-q">
+          <h2>Point on the axis <span class="sym"><i>q</i> in {<i>s</i>}</span></h2>
+          <div class="axrow"><span class="axlbl">q at</span>
+            <button type="button" id="q-so" class="w">{s} origin</button>
+            <button type="button" id="q-bo" class="w">{b} origin (now)</button>
+          </div>
+        </div>
+        <div class="grp" id="g-h">
+          <h2>Pitch <span class="sym"><i>h</i> (m/rad)</span></h2>
+        </div>
+        <div class="grp" id="g-spd">
+          <h2>Speed <span class="sym" id="spd-title"><i>θ̇</i></span></h2>
+          <div class="btnrow" id="move-row">
+            <button type="button" id="move" class="primary" aria-pressed="false">Move along screw</button>
+            <button type="button" id="step-dn">Step −</button>
+            <button type="button" id="step-up">Step +</button>
+          </div>
+          <p class="hint" id="step-hint">Each step applies e<sup>[𝒮]Δθ</sup> with Δθ = 15°.</p>
+        </div>
+        <div class="grp">
+          <h2>Twist presets</h2>
+          <div class="axrow">
+            <button type="button" class="w" data-tp="spin">Spin in place</button>
+            <button type="button" class="w" data-tp="orbit">Orbit the z-axis</button>
+            <button type="button" class="w" data-tp="helix">Helix</button>
+            <button type="button" class="w" data-tp="slide">Slide along x̂<sub>b</sub></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="pn-force" role="tabpanel" aria-labelledby="tab-force" hidden>
+        <div class="grp" id="g-r">
+          <h2>Push point <span class="sym"><i>r</i><sub>b</sub> in {<i>b</i>}</span></h2>
+          <div class="axrow" aria-label="Push point presets"><span class="axlbl">r<sub>b</sub> at</span>
+            <button type="button" data-rb="o" class="w">{b} origin</button>
+            <button type="button" data-rb="x" class="w c-x">+x face</button>
+            <button type="button" data-rb="y" class="w c-y">+y face</button>
+            <button type="button" data-rb="z" class="w c-z">+z face</button>
+            <button type="button" data-rb="c" class="w">corner</button>
+          </div>
+          <p class="hint">Fixed to the box, so it is set in body coordinates.</p>
+        </div>
+        <div class="grp" id="g-f">
+          <h2>Force <span class="sym c-f" id="f-title"></span></h2>
+          <div class="seg" role="group" aria-label="Frame the force is fixed in">
+            <button type="button" id="ff-s" aria-pressed="true">Fixed in {s}<small>like gravity</small></button>
+            <button type="button" id="ff-b" aria-pressed="false">Fixed in {b}<small>like a thruster</small></button>
+          </div>
+          <div class="axrow" aria-label="Force direction presets"><span class="axlbl" id="f-along">f along</span>
+            <button type="button" data-fa="+x" class="c-x">+x</button><button type="button" data-fa="-x" class="c-x">−x</button>
+            <button type="button" data-fa="+y" class="c-y">+y</button><button type="button" data-fa="-y" class="c-y">−y</button>
+            <button type="button" data-fa="+z" class="c-z">+z</button><button type="button" data-fa="-z" class="c-z">−z</button>
+            <button type="button" data-fa="0" class="w">zero</button>
+          </div>
+        </div>
+      </div>
+      <button type="button" id="reset">Reset to the example pose</button>
     </aside>
 
     <section class="stage" aria-label="3D views">
       <div class="views">
         <div class="view"><canvas id="cv-s" aria-label="Space view: camera fixed in the space frame"></canvas>
-          <div class="vlabel"><b>Space view</b><span>camera fixed to {s} · the body moves</span></div></div>
+          <div class="vlabel"><b>Space view</b><span>camera fixed to {s} · the body moves</span></div><div class="vstate" id="vs-s"></div></div>
         <div class="view"><canvas id="cv-b" aria-label="Body view: camera rides with the body frame"></canvas>
           <div class="vlabel"><b>Body view</b><span>camera rides with {b} · the world moves</span></div></div>
       </div>
@@ -232,29 +309,63 @@ footer{margin-top:22px;color:var(--muted);font-size:12.5px;max-width:95ch}
         <span class="k"><span class="sw" style="background:var(--y)"></span>y</span>
         <span class="k"><span class="sw" style="background:var(--z)"></span>z</span>
         <span class="k"><span class="sw" style="background:var(--force)"></span>force <span class="sym"><i>f</i></span></span>
-        <span class="k"><span class="sw" style="background:var(--torque)"></span>torque <span class="sym"><i>m</i></span> (drawn at ½ scale)</span>
+        <span class="k"><span class="sw" style="background:var(--torque)"></span>moment <span class="sym"><i>m</i></span> (½ scale)</span>
+        <span class="k"><span class="sw" style="background:var(--axis)"></span>screw axis, <span class="sym">ω</span></span>
+        <span class="k"><span class="sw" style="background:var(--vel)"></span>linear velocities</span>
         <span class="k"><span class="sw dash"></span>position vectors</span>
-        <span class="sep"></span>
-        <label><input type="checkbox" id="t-r" checked> vectors</label>
-        <label><input type="checkbox" id="t-m" checked> torques</label>
-        <label><input type="checkbox" id="t-w" checked> axis &amp; ω</label>
+      </div>
+      <div class="toggles">
+        <label><input type="checkbox" id="t-r" checked> position vectors</label>
+        <label><input type="checkbox" id="t-m" checked> moments</label>
+        <label><input type="checkbox" id="t-t" checked> twist &amp; velocities</label>
+        <label><input type="checkbox" id="t-w"> rotation axis ω̂ of R<sub>sb</sub></label>
+        <label><input type="checkbox" id="t-l"> screw of T<sub>sb</sub> (log)</label>
         <label><input type="checkbox" id="t-g" checked> grid</label>
       </div>
       <div class="try">
         <div class="try-head"><span class="eyebrow">Try this</span><span class="btnrow" id="exps"></span></div>
-        <p id="exp-text">Drag inside either view to orbit, scroll to zoom. Pick an experiment above, or move the sliders.</p>
+        <p id="exp-text">Drag inside either view to orbit, scroll to zoom. Pick an experiment above, or start from “Everything to zero” and raise one value at a time.</p>
       </div>
     </section>
 
-    <section class="mathwrap" aria-label="Live mathematics">
-      <div class="math">
-        <article class="card" id="c-rot"></article>
-        <article class="card" id="c-skew"></article>
-        <article class="card" id="c-space"></article>
-        <article class="card" id="c-wrench"></article>
-      </div>
-      <footer>Units are arbitrary (lengths in m, forces in N gives torques in N·m). The body rotates about its own origin, so <span class="sym"><i>T</i><sub>sb</sub> = (<i>R</i><sub>sb</sub>, <i>p</i>)</span> with <span class="sym"><i>R</i><sub>sb</sub> = e<sup>[ω̂]θ</sup></span>.</footer>
-    </section>
+    <div class="mathwrap">
+      <nav class="chapnav" aria-label="Chapter sections">
+        <a href="#ch31">3.1 Planar</a><a href="#ch32">3.2 Rotations</a><a href="#ch33">3.3 Twists</a><a href="#ch34">3.4 Wrenches</a>
+      </nav>
+      <section class="chap" id="ch31">
+        <h2><span class="num">3.1</span>Rigid-body motions in the plane</h2>
+        <div class="math"><article class="card" id="c31"></article></div>
+      </section>
+      <section class="chap" id="ch32">
+        <h2><span class="num">3.2</span>Rotations and angular velocities</h2>
+        <div class="math">
+          <article class="card" id="c321"></article>
+          <article class="card" id="c322"></article>
+          <article class="card" id="c323"></article>
+        </div>
+      </section>
+      <section class="chap" id="ch33">
+        <h2><span class="num">3.3</span>Rigid-body motions and twists</h2>
+        <div class="math">
+          <article class="card" id="c331"></article>
+          <article class="card" id="c331o"></article>
+          <article class="card" id="c332"></article>
+          <article class="card" id="c332s"></article>
+          <article class="card" id="c333"></article>
+          <article class="card" id="c333l"></article>
+        </div>
+      </section>
+      <section class="chap" id="ch34">
+        <h2><span class="num">3.4</span>Wrenches</h2>
+        <div class="math">
+          <article class="card" id="c34b"></article>
+          <article class="card" id="c34s"></article>
+          <article class="card" id="c34w"></article>
+          <article class="card" id="c34p"></article>
+        </div>
+      </section>
+      <footer>Units: lengths in m, angles in rad (sliders show degrees), forces in N, moments in N·m, power in W. The pose is stored as <span class="sym"><i>T</i><sub>sb</sub> = (<i>R</i><sub>sb</sub>, <i>p</i>)</span> with <span class="sym"><i>R</i><sub>sb</sub> = e<sup>[ω̂]θ</sup></span>. Moving along the screw applies <span class="sym"><i>T</i><sub>sb</sub> ← e<sup>[𝒮]Δθ</sup><i>T</i><sub>sb</sub></span> every frame, then reads ω̂ and θ back with the matrix logarithm.</footer>
+    </div>
   </div>
 </div>
 
@@ -262,11 +373,11 @@ footer{margin-top:22px;color:var(--muted);font-size:12.5px;max-width:95ch}
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
 (function(){
-const D2R = Math.PI/180;
-/* ---------- small linear algebra ---------- */
+const D2R=Math.PI/180;
+/* ---------- linear algebra ---------- */
 const add=(a,b)=>a.map((x,i)=>x+b[i]), sub=(a,b)=>a.map((x,i)=>x-b[i]), scl=(a,k)=>a.map(x=>x*k);
 const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
-const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const dot=(a,b)=>a.reduce((s,x,i)=>s+x*b[i],0);
 const nrm=a=>Math.hypot(...a);
 const skew=v=>[[0,-v[2],v[1]],[v[2],0,-v[0]],[-v[1],v[0],0]];
 const mm=(A,B)=>A.map(r=>B[0].map((_,j)=>r.reduce((s,a,k)=>s+a*B[k][j],0)));
@@ -277,232 +388,462 @@ const mscl=(A,k)=>A.map(r=>r.map(x=>x*k));
 const I3=[[1,0,0],[0,1,0],[0,0,1]];
 const det3=M=>M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1])-M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0])+M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0]);
 const fmax=M=>Math.max(...M.flat().map(Math.abs));
+const mdiff=(A,B)=>fmax(madd(A,mscl(B,-1)));
+const clean=x=>Math.abs(x)<1e-12?0:x;
+const toT=(R,p)=>[[...R[0],p[0]],[...R[1],p[1]],[...R[2],p[2]],[0,0,0,1]];
+const Rof=T=>T.slice(0,3).map(r=>r.slice(0,3));
+const pof=T=>T.slice(0,3).map(r=>r[3]);
+const Tinv=(R,p)=>{const Rt=tr(R); return toT(Rt,scl(mv(Rt,p),-1));};
+const dirv=(az,el)=>[Math.cos(el)*Math.cos(az),Math.cos(el)*Math.sin(az),Math.sin(el)].map(clean);
+const rodr=(w,th)=>{const W=skew(w); return madd(madd(I3,mscl(W,Math.sin(th))),mscl(mm(W,W),1-Math.cos(th)));};
+const Gmat=(w,th)=>{const W=skew(w); return madd(madd(mscl(I3,th),mscl(W,1-Math.cos(th))),mscl(mm(W,W),th-Math.sin(th)));};
+function expS(w,v,th){ if(nrm(w)<1e-9) return {R:I3,p:scl(v,th),G:mscl(I3,th)}; const G=Gmat(w,th); return {R:rodr(w,th),p:mv(G,v),G}; }
+const se3=(w,v)=>[[0,-w[2],w[1],v[0]],[w[2],0,-w[0],v[1]],[-w[1],w[0],0,v[2]],[0,0,0,0]];
+const adj=(R,p)=>{const PR=mm(skew(p),R); return [0,1,2].map(i=>[...R[i],0,0,0]).concat([0,1,2].map(i=>[...PR[i],...R[i]]));};
+function logR(R){
+  const c=Math.min(1,Math.max(-1,(R[0][0]+R[1][1]+R[2][2]-1)/2)), th=Math.acos(c);
+  if(th<1e-7) return {w:null,th:0,c};
+  if(Math.PI-th<1e-4){
+    let w;
+    if(R[2][2]>-1+1e-6) w=scl([R[0][2],R[1][2],1+R[2][2]],1/Math.sqrt(2*(1+R[2][2])));
+    else if(R[1][1]>-1+1e-6) w=scl([R[0][1],1+R[1][1],R[2][1]],1/Math.sqrt(2*(1+R[1][1])));
+    else w=scl([1+R[0][0],R[1][0],R[2][0]],1/Math.sqrt(2*(1+R[0][0])));
+    return {w:scl(w,1/nrm(w)),th,c,half:true};
+  }
+  const k=1/(2*Math.sin(th));
+  return {w:[(R[2][1]-R[1][2])*k,(R[0][2]-R[2][0])*k,(R[1][0]-R[0][1])*k],th,c};
+}
 
 /* ---------- state ---------- */
-const DEFAULT = {p:[1.5,1,0.75], az:30, el:60, th:45, rate:60, rb:[0.75,0.25,0.25], f:[0,0,-1.25], fFrame:'s'};
-const HALF=[0.75,0.5,0.25]; // box half-extents, all on the 0.25 grid
-const S = JSON.parse(JSON.stringify(DEFAULT));
-const show = {r:true, m:true, w:true, g:true};
-let C = {}, dirty = true, spinning = false;
+const HALF=[0.75,0.5,0.25];
+const DEFAULT={p:[1.5,1,0.75],az:30,el:60,th:45, rb:[0.75,0.25,0.25],f:[0,0,-1.25],fFrame:'s',
+  tmode:'screw',saz:0,sel:90,q:[0.5,0.5,0],h:0,rate:45,vrate:0.5};
+const S=JSON.parse(JSON.stringify(DEFAULT));
+const show={r:true,m:true,t:true,w:false,l:false,g:true};
+let C={}, dirty=true, moving=false, T0=null, travel=0, lastOp=null;
+const markPose=()=>{T0=null; travel=0;};
 
 function compute(){
-  const az=S.az*D2R, el=S.el*D2R, th=S.th*D2R;
-  const w=[Math.cos(el)*Math.cos(az), Math.cos(el)*Math.sin(az), Math.sin(el)].map(x=>Math.abs(x)<1e-12?0:x);
-  const W=skew(w), W2=mm(W,W), sn=Math.sin(th), cs=1-Math.cos(th);
-  const R=madd(madd(I3,mscl(W,sn)),mscl(W2,cs)), Rt=tr(R);
-  const p=S.p.slice(), rb=S.rb.slice();
-  const fs = S.fFrame==='s' ? S.f.slice() : mv(R,S.f);
-  const fb = S.fFrame==='b' ? S.f.slice() : mv(Rt,S.f);
-  const rs = add(p, mv(R,rb));
-  const ms = cross(rs,fs), mb = cross(rb,fb);
-  const ws = scl(w, S.rate*D2R), wb = mv(Rt,ws);
-  C={w,th,W,W2,sn,cs,R,Rt,p,rb,rs,fs,fb,ms,mb,ws,wb};
+  const w=dirv(S.az*D2R,S.el*D2R), th=S.th*D2R, W=skew(w), W2=mm(W,W), sn=Math.sin(th), cs=1-Math.cos(th);
+  const R=madd(madd(I3,mscl(W,sn)),mscl(W2,cs)), Rt=tr(R), p=S.p.slice(), rb=S.rb.slice();
+  const fs=S.fFrame==='s'?S.f.slice():mv(R,S.f), fb=S.fFrame==='b'?S.f.slice():mv(Rt,S.f);
+  const rs=add(p,mv(R,rb)), ms=cross(rs,fs), mb=cross(rb,fb);
+  // twist from the screw
+  const sh=dirv(S.saz*D2R,S.sel*D2R), screw=S.tmode==='screw';
+  const Sw=screw?sh:[0,0,0], Sv=screw?add(scl(cross(sh,S.q),-1),scl(sh,S.h)):sh.slice();
+  const speed=screw?S.rate*D2R:S.vrate;
+  const ws=scl(Sw,speed), vs=scl(Sv,speed);
+  const wb=mv(Rt,ws), vb=mv(Rt,sub(vs,cross(p,ws)));
+  const Sbw=mv(Rt,Sw), Sbv=mv(Rt,sub(Sv,cross(p,Sw)));
+  const pdot=add(vs,cross(ws,p)), vpt=add(vs,cross(ws,rs));
+  const Rdot=mm(skew(ws),R);
+  // log of T_sb
+  let lw,lth,lv,Ginv=null;
+  if(Math.abs(th)<1e-7){ const n=nrm(p); lw=[0,0,0]; lth=n; lv=n>1e-9?scl(p,1/n):[0,0,0]; }
+  else{
+    const sg=th<0?-1:1; lw=scl(w,sg); lth=Math.abs(th);
+    const LW=skew(lw);
+    Ginv=madd(madd(mscl(I3,1/lth),mscl(LW,-0.5)),mscl(mm(LW,LW),1/lth-0.5/Math.tan(lth/2)));
+    lv=mv(Ginv,p);
+  }
+  if(!T0) T0={R,p};
+  C={w,th,W,W2,sn,cs,R,Rt,p,rb,rs,fs,fb,ms,mb,sh,screw,Sw,Sv,speed,ws,vs,wb,vb,Sbw,Sbv,pdot,vpt,Rdot,lw,lth,lv,Ginv};
+}
+function setPose(R,p){
+  S.p=p.map(x=>+x.toFixed(9));
+  const L=logR(R);
+  if(L.w===null){S.th=0; return;}
+  S.th=+(L.th/D2R).toFixed(7);
+  S.el=+(Math.asin(Math.max(-1,Math.min(1,L.w[2])))/D2R).toFixed(7);
+  if(Math.abs(L.w[2])<1-1e-9) S.az=+(Math.atan2(L.w[1],L.w[0])/D2R).toFixed(7);
 }
 
 /* ---------- formatting ---------- */
-const fmt=(x,d=2)=>{ let s=(Math.abs(x)<0.5*Math.pow(10,-d)?0:x).toFixed(d); return s.replace('-','−'); };
+const fmt=(x,d=2)=>{let s=(Math.abs(x)<0.5*Math.pow(10,-d)?0:x).toFixed(d); return s.replace('-','−');};
 const sym=(s,sub,cls='')=>`<span class="sym ${cls}"><i>${s}</i>${sub?`<sub>${sub}</sub>`:''}</span>`;
+const Sy=(html,cls='')=>`<span class="sym ${cls}">${html}</span>`;
 function mx(M,cell){
-  const rows = Array.isArray(M[0]) ? M : M.map(x=>[x]);
-  const n = rows[0].length;
+  const rows=Array.isArray(M[0])?M:M.map(x=>[x]); const n=rows[0].length;
   let h=`<span class="mx"><span class="mx-g" style="grid-template-columns:repeat(${n},auto)">`;
-  rows.forEach((r,i)=>r.forEach((v,j)=>{
-    const c = cell ? cell(i,j) : '';
-    h += typeof v==='number' ? `<span class="${c}">${fmt(v)}</span>` : `<span class="sy ${c}">${v}</span>`;
-  }));
+  rows.forEach((r,i)=>r.forEach((v,j)=>{const c=cell?cell(i,j):''; h+=typeof v==='number'?`<span class="${c}">${fmt(v)}</span>`:`<span class="sy ${c}">${v}</span>`;}));
   return h+'</span></span>';
 }
-const colRGB=(i,j)=>['cx','cy','cz'][j];
+const colRGB=(i,j)=>['cx','cy','cz','dim'][j]||'';
+const tw=i=>i<3?'ca':'cv', wr=i=>i<3?'cm':'cf';
+const cf=()=>'cf', cm=()=>'cm', ca=()=>'ca', cv=()=>'cv';
 const op=s=>`<span class="op">${s}</span>`;
 const coef=x=>`<span class="coef">(${fmt(x)})</span>`;
+const chip=(ok,html)=>`<span class="chip ${ok===true?'ok':ok===false?'warn':''}">${html}</span>`;
+const $=id=>document.getElementById(id);
+const blk6=(i,j)=>(i<3&&j<3)||(i>=3&&j>=3)?'bR':(i>=3&&j<3?'bP':'');
+const blk6T=(i,j)=>(i<3&&j<3)||(i>=3&&j>=3)?'bR':(i<3&&j>=3?'bP':'');
+const blk4=(i,j)=>i<3&&j<3?'bR':(i<3&&j===3?'bP':'dim');
+const rowsCross=(r,f,m,mn)=>{
+  const L=(a,b,c,d,k)=>`<div>${sym('m',mn+k)} = ${sym('r',a)}${sym('f',b)} − ${sym('r',c)}${sym('f',d)} = <span class="n">(${fmt(r[a-1])})(${fmt(f[b-1])}) − (${fmt(r[c-1])})(${fmt(f[d-1])})</span> = <span class="n c-m">${fmt(m[k-1])}</span></div>`;
+  return `<div class="rows">${L(2,3,3,2,1)}${L(3,1,1,3,2)}${L(1,2,2,1,3)}</div>`;
+};
 
 /* ---------- math cards ---------- */
-const $=id=>document.getElementById(id);
 function renderMath(){
-  const {w,th,W,W2,sn,cs,R,Rt,p,rb,rs,fs,fb,ms,mb}=C;
-  const RtR=mm(Rt,R), skewErr=fmax(madd(tr(W),W)), orthErr=fmax(madd(RtR,mscl(I3,-1)));
-  const fsTxt = S.fFrame==='s';
+  const c=C, R=c.R, Rt=c.Rt, p=c.p;
+  const T=toT(R,p), Ti=Tinv(R,p);
 
-  $('c-rot').innerHTML = `
-    <h3>Rotation from a skew matrix</h3>
-    <p class="note">Orientation is given in exponential coordinates: a unit axis ω̂ and an angle θ. Rodrigues' formula turns the skew matrix [ω̂] into the rotation matrix <i>R</i><sub>sb</sub>.</p>
-    <div class="eq">${sym('ω̂','','c-a')} ${op('=')} ${mx(w)} <span class="op">,</span> ${sym('θ')} ${op('=')} <span class="coef">${fmt(S.th,1)}° = ${fmt(th,3)} rad</span></div>
-    <div class="eq"><span class="sym">[ω̂]</span> ${op('=')} ${mx(W)} <span class="sym">[ω̂]<sup>2</sup></span> ${op('=')} ${mx(W2)}</div>
-    <div class="eq"><span class="sym"><i>R</i><sub>sb</sub> = <i>I</i> + sin θ [ω̂] + (1 − cos θ) [ω̂]<sup>2</sup></span></div>
-    <div class="eq">${sym('R','sb')} ${op('=')} ${mx(I3)} ${op('+')} ${coef(sn)} ${mx(W)} ${op('+')} ${coef(cs)} ${mx(W2)} ${op('=')} ${mx(R,colRGB)}</div>
-    <p class="note">The columns of <i>R</i><sub>sb</sub> are the body axes <span class="c-x">x̂<sub>b</sub></span>, <span class="c-y">ŷ<sub>b</sub></span>, <span class="c-z">ẑ<sub>b</sub></span> written in {s} coordinates. Its transpose <i>R</i><sub>bs</sub> = <i>R</i><sub>sb</sub><sup>T</sup> maps {s} coordinates back to {b}.</p>
-    <div class="chips">
-      <span class="chip ${skewErr<1e-9?'ok':''}">[ω̂]<sup>T</sup> = −[ω̂]</span>
-      <span class="chip ${orthErr<1e-9?'ok':''}">R<sup>T</sup>R = I</span>
-      <span class="chip ok">det R = <span class="n">${det3(R).toFixed(3)}</span></span>
-      <span class="chip ok">R ω̂ = ω̂ (axis is unmoved)</span>
-    </div>
-    <div class="subh">Angular velocity while spinning</div>
-    <div class="eq">${sym('ω','s','c-a')} ${op('=')} <span class="sym">ω̂ <i>θ̇</i></span> ${op('=')} ${mx(w)} <span class="coef">· ${fmt(S.rate*D2R,3)} rad/s</span> ${op('=')} ${mx(C.ws)} <span class="op">,</span> ${sym('ω','b','c-a')} ${op('=')} <span class="sym"><i>R</i><sub>sb</sub><sup>T</sup>ω<sub>s</sub></span> ${op('=')} ${mx(C.wb)}</div>
-    <div class="eq"><span class="sym"><i>Ṙ</i><sub>sb</sub><i>R</i><sub>sb</sub><sup>T</sup> = [ω<sub>s</sub>]</span> ${op('=')} ${mx(skew(C.ws))} <span class="op">,</span> <span class="sym"><i>Ṙ</i><sub>sb</sub> = [ω<sub>s</sub>]<i>R</i><sub>sb</sub></span> ${op('=')} ${mx(mm(skew(C.ws),R))}</div>
-    <p class="note">The skew matrix of the angular velocity gives the rate of change of R. The body turns about a fixed axis, and R ω̂ = ω̂, so here ω<sub>b</sub> = ω<sub>s</sub>. Set θ̇ with its slider and press Spin to watch it happen.</p>`;
+  /* 3.1 planar */
+  const zAligned=Math.abs(R[2][2]-1)<1e-6;
+  const thp=Math.atan2(R[1][0],R[0][0]);
+  const twPlanar=Math.abs(c.ws[0])<1e-9&&Math.abs(c.ws[1])<1e-9&&Math.abs(c.vs[2])<1e-9;
+  const wrPlanar=Math.abs(c.fs[2])<1e-9&&Math.abs(c.rs[2])<1e-9;
+  $('c31').innerHTML=`
+    <h3>Motion in the xy-plane</h3>
+    <p class="note">When the body only turns about z and moves in the plane, 3×3 matrices are enough: a planar pose has one angle and two coordinates, a planar twist and a planar wrench have three numbers each. Press “Make it planar” to put the scene in this case.</p>
+    <div class="chips">${chip(zAligned,'rotation only about z')}${chip(twPlanar,'twist in the plane')}${chip(wrPlanar,'force and push point in the plane')}</div>
+    <div class="eq">${sym('T','sb')} ${op('=')} ${mx([['cos θ','−sin θ','p<sub>x</sub>'],['sin θ','cos θ','p<sub>y</sub>'],['0','0','1']])} ${op('=')} ${mx([[Math.cos(thp),-Math.sin(thp),p[0]],[Math.sin(thp),Math.cos(thp),p[1]],[0,0,1]],(i)=>i===2?'dim':'')} <span class="coef">θ = ${fmt(thp/D2R,1)}°</span></div>
+    <div class="eq">${Sy('𝒱<sub>s</sub> = (ω<sub>z</sub>, v<sub>x</sub>, v<sub>y</sub>)')} ${op('=')} ${mx([c.ws[2],c.vs[0],c.vs[1]],i=>i?'cv':'ca')} <span class="op">,</span> ${Sy('ℱ<sub>s</sub> = (m<sub>z</sub>, f<sub>x</sub>, f<sub>y</sub>)')} ${op('=')} ${mx([c.ms[2],c.fs[0],c.fs[1]],i=>i?'cf':'cm')}</div>
+    <div class="rows"><div>${sym('m','z')} = ${sym('r','x')}${sym('f','y')} − ${sym('r','y')}${sym('f','x')} = <span class="n">(${fmt(c.rs[0])})(${fmt(c.fs[1])}) − (${fmt(c.rs[1])})(${fmt(c.fs[0])})</span> = <span class="n c-m">${fmt(c.ms[2])}</span></div></div>
+    <p class="note">${zAligned&&twPlanar&&wrPlanar?'Everything is planar now: the 3D quantities below have zeros in exactly the places the planar forms leave out.':'Not fully planar right now, so the 3D quantities below carry extra components that these planar forms leave out.'} In the plane, a moment is a scalar and the cross product reduces to one 2×2 determinant.</p>`;
 
-  const rows=(r,f,m,sb)=>{
-    const L=(a,b,c,d,k)=>`<div>${sym('m',k)} = ${sym('r',a)}${sym('f',b)} − ${sym('r',c)}${sym('f',d)} = <span class="n">(${fmt(r[+a-1])})(${fmt(f[+b-1])}) − (${fmt(r[+c-1])})(${fmt(f[+d-1])})</span> = <span class="n c-m">${fmt(m[+k-1])}</span></div>`;
-    return `<div class="rows">${L('2','3','3','2','1')}${L('3','1','1','3','2')}${L('1','2','2','1','3')}</div>`;
-  };
-  $('c-skew').innerHTML = `
-    <h3>Torque in the body frame {b}</h3>
-    <p class="note">The skew matrix turns a cross product into a matrix product. For any vector <i>a</i>, [<i>a</i>]<i>b</i> = <i>a</i> × <i>b</i>, and [<i>a</i>]<sup>T</sup> = −[<i>a</i>].</p>
+  /* 3.2.1 rotation matrices */
+  const orthErr=mdiff(mm(Rt,R),I3);
+  $('c321').innerHTML=`
+    <h3><span class="num">3.2.1</span>Rotation matrices</h3>
+    <p class="note">R<sub>sb</sub> belongs to SO(3): R<sup>T</sup>R = I and det R = 1. It has three uses.</p>
+    <div class="subh">1 · Represent an orientation</div>
+    <div class="eq">${sym('R','sb')} ${op('=')} ${mx([['x̂<sub>b</sub>','ŷ<sub>b</sub>','ẑ<sub>b</sub>']],(i,j)=>['cx','cy','cz'][j])} ${op('=')} ${mx(R,colRGB)}</div>
+    <p class="note">The columns are the body axes written in {s} coordinates.</p>
+    <div class="subh">2 · Change the frame of a vector</div>
+    <div class="eq">${sym('f','s','c-f')} ${op('=')} ${Sy('<i>R</i><sub>sb</sub><i>f</i><sub>b</sub>')} ${op('=')} ${mx(R,colRGB)} ${mx(c.fb,cf)} ${op('=')} ${mx(c.fs,cf)}</div>
+    <div class="eq">${Sy('<i>R</i><sub>bs</sub> = <i>R</i><sub>sb</sub><sup>−1</sup> = <i>R</i><sub>sb</sub><sup>T</sup>')} ${op('=')} ${mx(Rt)}</div>
+    <p class="note">Subscripts cancel: R<sub>ab</sub>R<sub>bc</sub> = R<sub>ac</sub>, and R<sub>sb</sub>v<sub>b</sub> = v<sub>s</sub>.</p>
+    <div class="subh">3 · Rotate a vector or a frame</div>
+    <p class="note">Rot(ω̂, θ)·R turns the frame about an axis of {s}; R·Rot(ω̂, θ) turns it about its own axis. Try the “Fixed frame or body frame?” buttons in the Pose tab; §3.3.1 shows the result.</p>
+    <div class="chips">${chip(orthErr<1e-9,'R<sup>T</sup>R = I')}${chip(Math.abs(det3(R)-1)<1e-9,`det R = <span class="n">${det3(R).toFixed(3)}</span>`)}</div>`;
+
+  /* 3.2.2 angular velocity */
+  const Wb=mm(Rt,c.Rdot);
+  $('c322').innerHTML=`
+    <h3><span class="num">3.2.2</span>Angular velocities</h3>
+    <p class="note">A skew matrix turns a cross product into a matrix product: [a]b = a × b, and [a]<sup>T</sup> = −[a]. It also links a rotating frame to its angular velocity.</p>
     <div class="eq"><span class="sym">[<i>a</i>]</span> ${op('=')} ${mx([['0','−a₃','a₂'],['a₃','0','−a₁'],['−a₂','a₁','0']])}</div>
-    <div class="subh">Moment about the {b} origin</div>
-    <div class="eq">${sym('m','b','c-m')} ${op('=')} <span class="sym">[<i>r</i><sub>b</sub>]<i class="c-f">f</i><sub class="c-f">b</sub></span> ${op('=')} ${mx(skew(rb))} ${mx(fb,()=>'cf')} ${op('=')} ${mx(mb,()=>'cm')}</div>
-    ${rows(rb,fb,mb)}
-    <div class="chips">
-      <span class="chip ok">m<sub>b</sub> · r<sub>b</sub> = <span class="n">${fmt(dot(mb,rb),3)}</span></span>
-      <span class="chip ok">m<sub>b</sub> · f<sub>b</sub> = <span class="n">${fmt(dot(mb,fb),3)}</span></span>
-      <span class="chip">‖m<sub>b</sub>‖ = <span class="n">${fmt(nrm(mb))}</span></span>
+    <div class="eq">${sym('ω','s','c-a')} ${op('=')} ${mx(c.ws,ca)} <span class="op">,</span> ${sym('ω','b','c-a')} ${op('=')} ${Sy('<i>R</i><sub>sb</sub><sup>T</sup>ω<sub>s</sub>')} ${op('=')} ${mx(c.wb,ca)} <span class="coef">rad/s</span></div>
+    <div class="eq">${Sy('<i>Ṙ</i><sub>sb</sub> = [ω<sub>s</sub>]<i>R</i><sub>sb</sub>')} ${op('=')} ${mx(skew(c.ws),ca)} ${mx(R,colRGB)} ${op('=')} ${mx(c.Rdot)}</div>
+    <div class="eq">${Sy('<i>ṘR</i><sup>T</sup> = [ω<sub>s</sub>]')} <span class="op">,</span> ${Sy('<i>R</i><sup>T</sup><i>Ṙ</i> = [ω<sub>b</sub>]')} ${op('=')} ${mx(Wb,ca)}</div>
+    <p class="note">ω<sub>s</sub> and ω<sub>b</sub> are the same physical vector written in two frames. Unlike linear velocity it does not depend on a reference point. The angular velocity comes from the twist set in the Twist tab.</p>
+    <div class="chips">${chip(mdiff(Wb,skew(c.wb))<1e-9,'R<sup>T</sup>Ṙ = [ω<sub>b</sub>]')}${chip(null,`‖ω‖ = <span class="n">${fmt(nrm(c.ws),3)}</span> rad/s`)}</div>`;
+
+  /* 3.2.3 exponential coordinates */
+  const L=logR(R);
+  $('c323').innerHTML=`
+    <h3><span class="num">3.2.3</span>Exponential coordinates of rotation</h3>
+    <p class="note">Any rotation is a turn θ about a unit axis ω̂. The vector ω̂θ ∈ ℝ³ gives the exponential coordinates, and Rodrigues' formula evaluates the matrix exponential.</p>
+    <div class="eq">${Sy('ω̂')} ${op('=')} ${mx(c.w)} <span class="op">,</span> ${sym('θ')} ${op('=')} <span class="coef">${fmt(S.th,1)}° = ${fmt(c.th,3)} rad</span> <span class="op">,</span> ${Sy('ω̂θ')} ${op('=')} ${mx(scl(c.w,c.th))}</div>
+    <div class="eq">${Sy('e<sup>[ω̂]θ</sup> = <i>I</i> + sin θ [ω̂] + (1 − cos θ)[ω̂]<sup>2</sup>')}</div>
+    <div class="eq">${sym('R','sb')} ${op('=')} ${mx(I3)} ${op('+')} ${coef(c.sn)} ${mx(c.W)} ${op('+')} ${coef(c.cs)} ${mx(c.W2)} ${op('=')} ${mx(R,colRGB)}</div>
+    <div class="subh">Matrix logarithm: back from R to ω̂θ</div>
+    <div class="rows">
+      <div>tr <i>R</i> = <span class="n">${fmt(R[0][0]+R[1][1]+R[2][2],3)}</span> , θ = cos<sup>−1</sup>((tr <i>R</i> − 1)/2) = <span class="n">${fmt(L.th,3)} rad = ${fmt(L.th/D2R,1)}°</span></div>
     </div>
-    <p class="note">${fsTxt ? 'The force is fixed in {s}, so its body coordinates come from rotating it back: <i>f</i><sub>b</sub> = <i>R</i><sub>sb</sub><sup>T</sup><i>f</i><sub>s</sub>. Rotate the body and watch <i>f</i><sub>b</sub> change.' : 'The force is fixed in {b}, so <i>f</i><sub>b</sub> is exactly what you set. Rotate the body and <i>m</i><sub>b</sub> stays constant.'}</p>`;
+    ${L.w===null?'<p class="note">R = I, so θ = 0 and the axis is undefined.</p>':
+      L.half?`<p class="note">θ = π: sin θ = 0, so the axis comes from the diagonal of R instead.</p><div class="eq">${Sy('ω̂')} ${op('=')} ${mx(L.w)}</div>`:
+      `<div class="eq">${Sy('[ω̂] = (<i>R</i> − <i>R</i><sup>T</sup>) / (2 sin θ)')} ${op('=')} ${mx(mscl(madd(R,mscl(Rt,-1)),1/(2*Math.sin(L.th))))} ${op('⇒')} ${Sy('ω̂')} ${op('=')} ${mx(L.w)}</div>`}
+    <div class="chips">${chip(true,'R ω̂ = ω̂ (the axis is unmoved)')}${chip(null,'log returns θ ∈ [0, π]')}</div>`;
 
-  $('c-space').innerHTML = `
-    <h3>Torque in the space frame {s}</h3>
-    <p class="note">The same point and force expressed in {s}. The moment is now taken about the {s} origin, so the lever arm is <i>r</i><sub>s</sub>, not <i>r</i><sub>b</sub>.</p>
-    <div class="eq">${sym('r','s')} ${op('=')} <span class="sym"><i>p</i> + <i>R</i><sub>sb</sub><i>r</i><sub>b</sub></span> ${op('=')} ${mx(p)} ${op('+')} ${mx(R,colRGB)} ${mx(rb)} ${op('=')} ${mx(rs)}</div>
-    <div class="eq">${sym('f','s','c-f')} ${op('=')} <span class="sym"><i>R</i><sub>sb</sub><i>f</i><sub>b</sub></span> ${op('=')} ${mx(R,colRGB)} ${mx(fb,()=>'cf')} ${op('=')} ${mx(fs,()=>'cf')}</div>
-    <div class="subh">Moment about the {s} origin</div>
-    <div class="eq">${sym('m','s','c-m')} ${op('=')} <span class="sym">[<i>r</i><sub>s</sub>]<i class="c-f">f</i><sub class="c-f">s</sub></span> ${op('=')} ${mx(skew(rs))} ${mx(fs,()=>'cf')} ${op('=')} ${mx(ms,()=>'cm')}</div>
-    ${rows(rs,fs,ms)}
-    <div class="chips">
-      <span class="chip ok">m<sub>s</sub> · r<sub>s</sub> = <span class="n">${fmt(dot(ms,rs),3)}</span></span>
-      <span class="chip ok">m<sub>s</sub> · f<sub>s</sub> = <span class="n">${fmt(dot(ms,fs),3)}</span></span>
-      <span class="chip">‖m<sub>s</sub>‖ = <span class="n">${fmt(nrm(ms))}</span></span>
-    </div>`;
+  /* 3.3.1 homogeneous transformation */
+  const rsh=mv(T,[...c.rb,1]);
+  $('c331').innerHTML=`
+    <h3><span class="num">3.3.1</span>Homogeneous transformation</h3>
+    <p class="note">T<sub>sb</sub> ∈ SE(3) packs orientation and position into one 4×4 matrix. Its inverse is cheap because R<sup>−1</sup> = R<sup>T</sup>.</p>
+    <div class="eq">${sym('T','sb')} ${op('=')} ${mx([['R','p'],['0','1']])} ${op('=')} ${mx(T,blk4)}</div>
+    <div class="eq">${Sy('<i>T</i><sub>bs</sub> = <i>T</i><sub>sb</sub><sup>−1</sup>')} ${op('=')} ${mx([['R<sup>T</sup>','−R<sup>T</sup>p'],['0','1']])} ${op('=')} ${mx(Ti,blk4)}</div>
+    <div class="subh">Change the frame of a point</div>
+    <div class="eq">${mx([...c.rs,1])} ${op('=')} ${mx(T,blk4)} ${mx([...c.rb,1])} <span class="op">,</span> ${Sy('<i>r</i><sub>s</sub> = <i>R</i><sub>sb</sub><i>r</i><sub>b</sub> + <i>p</i>')}</div>
+    <div class="chips">${chip(mdiff(mm(T,Ti),[[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])<1e-9,'T T<sup>−1</sup> = I')}${chip(nrm(sub(rsh.slice(0,3),c.rs))<1e-9,'T<sub>sb</sub>[r<sub>b</sub>; 1] = [r<sub>s</sub>; 1]')}</div>`;
 
-  const PR=mm(skew(p),R), PRt=tr(PR);
-  const AdT=[0,1,2].map(i=>[...Rt[i],...PRt[i]]).concat([0,1,2].map(i=>[0,0,0,...Rt[i]]));
-  const Fs=[...ms,...fs], Fb=mv(AdT,Fs);
-  const FbErr=Math.max(...Fb.map((x,i)=>Math.abs(x-[...mb,...fb][i])));
-  const Rtms=mv(Rt,ms), pxf=cross(p,fs), diff=mv(Rt,pxf);
-  const blk=(i,j)=> (i<3&&j<3)||(i>=3&&j>=3) ? 'bR' : (i<3&&j>=3 ? 'bP' : '');
-  const wcell=i=> i<3 ? 'cm' : 'cf';
-  $('c-wrench').innerHTML = `
-    <h3>Wrenches: moving between frames</h3>
-    <p class="note">Stack moment and force into a wrench <i>F</i> = (<i>m</i>, <i>f</i>). The adjoint of <i>T</i><sub>sb</sub> changes both the coordinates and the reference point in one step.</p>
-    <div class="eq"><span class="sym">[Ad<sub><i>T</i><sub>sb</sub></sub>] = </span>${mx([['R','0'],['[p]R','R']])} <span class="op">,</span> <span class="sym"><i>F</i><sub>b</sub> = [Ad<sub><i>T</i><sub>sb</sub></sub>]<sup>T</sup> <i>F</i><sub>s</sub></span></div>
-    <div class="eq">${mx(Fb,wcell)} ${op('=')} ${mx(AdT,blk)} ${mx(Fs,wcell)}</div>
-    <div class="chips"><span class="chip ${FbErr<1e-9?'ok':''}">result matches (m<sub>b</sub>, f<sub>b</sub>) from the {b} card</span></div>
+  /* 3.3.1 ops */
+  let opHtml='<p class="note">No operation yet. Use the “Fixed frame or body frame?” buttons in the Pose tab. Each one rotates by 15° or moves by 0.25 along one axis.</p>';
+  if(lastOp){
+    const a='xyz'[lastOp.i], sg=lastOp.sign>0?'':'−';
+    const nm=lastOp.kind==='rot'?`Rot(${a}̂, ${sg}15°)`:`Trans(${sg}0.25 ${a}̂)`;
+    const eqn=lastOp.frame==='s'?`${mx(lastOp.T2,blk4)} ${op('=')} ${mx(lastOp.Op,blk4)} ${mx(lastOp.T,blk4)}`:`${mx(lastOp.T2,blk4)} ${op('=')} ${mx(lastOp.T,blk4)} ${mx(lastOp.Op,blk4)}`;
+    opHtml=`<div class="eq">${Sy(lastOp.frame==='s'?`<i>T</i>′ = ${nm} · <i>T</i>`:`<i>T</i>′ = <i>T</i> · ${nm}`)}</div><div class="eq">${eqn}</div>
+    <p class="note">${lastOp.frame==='s'
+      ?(lastOp.kind==='rot'?`Premultiplying turned the body about the ${a}-axis of {s}, which passes through the {s} origin, so the position p moved too.`:`Premultiplying moved the body along the ${a}-axis of {s}. The orientation did not change.`)
+      :(lastOp.kind==='rot'?`Postmultiplying turned the body about its own ${a}̂<sub>b</sub> axis, through its own origin, so p did not change.`:`Postmultiplying moved the body along its own ${a}̂<sub>b</sub> axis, which is the column ${a}̂<sub>b</sub> of R in {s}.`)}</p>`;
+  }
+  $('c331o').innerHTML=`<h3><span class="num">3.3.1</span>Premultiply or postmultiply?</h3>
+    <p class="note">The same operation Op gives a different result depending on the side: <b>Op · T</b> acts along the fixed {s} axes, <b>T · Op</b> along the moving {b} axes.</p>${opHtml}`;
+
+  /* 3.3.2 twists */
+  const Vs=[...c.ws,...c.vs], Vb=[...c.wb,...c.vb], Ad=adj(R,p), AdVb=mv(Ad,Vb);
+  const Tdot=mm(se3(c.ws,c.vs),T);
+  $('c332').innerHTML=`
+    <h3><span class="num">3.3.2</span>Twists</h3>
+    <p class="note">A twist 𝒱 = (ω, v) is the full rigid-body velocity. v<sub>s</sub> is the velocity of the body point that currently sits at the {s} origin (imagine the body extended that far); v<sub>b</sub> is the velocity of the {b} origin, in {b} coordinates.</p>
+    <div class="eq">${sym('𝒱','s')} ${op('=')} ${mx(Vs,tw)} <span class="op">,</span> ${sym('𝒱','b')} ${op('=')} ${mx(Vb,tw)}</div>
+    <div class="eq">${Sy('[𝒱<sub>s</sub>] = <i>ṪT</i><sup>−1</sup>')} ${op('=')} ${mx([['[ω<sub>s</sub>]','v<sub>s</sub>'],['0','0']])} ${op('=')} ${mx(se3(c.ws,c.vs),(i,j)=>i===3?'dim':j<3?'ca':'cv')} <span class="op">,</span> ${Sy('[𝒱<sub>b</sub>] = <i>T</i><sup>−1</sup><i>Ṫ</i>')}</div>
+    <div class="subh">Changing frames with the adjoint</div>
+    <div class="eq">${Sy('𝒱<sub>s</sub> = [Ad<sub><i>T</i><sub>sb</sub></sub>]𝒱<sub>b</sub>')} <span class="op">,</span> ${Sy('[Ad<sub><i>T</i></sub>]')} ${op('=')} ${mx([['R','0'],['[p]R','R']])}</div>
+    <div class="eq">${mx(AdVb,tw)} ${op('=')} ${mx(Ad,blk6)} ${mx(Vb,tw)}</div>
+    <div class="subh">Velocities of points on the body</div>
+    <div class="eq">${Sy('<i>ṗ</i> = <i>v</i><sub>s</sub> + ω<sub>s</sub> × <i>p</i> = <i>R</i><sub>sb</sub><i>v</i><sub>b</sub>')} ${op('=')} ${mx(c.pdot,cv)} <span class="op">,</span> ${Sy('<i>ṙ</i><sub>s</sub> = <i>v</i><sub>s</sub> + ω<sub>s</sub> × <i>r</i><sub>s</sub>')} ${op('=')} ${mx(c.vpt,cv)}</div>
+    <div class="chips">${chip(mdiff([AdVb],[Vs])<1e-9,'[Ad<sub>T</sub>]𝒱<sub>b</sub> = 𝒱<sub>s</sub>')}${chip(mdiff(mm(Tdot,Ti),se3(c.ws,c.vs))<1e-9,'ṪT<sup>−1</sup> = [𝒱<sub>s</sub>]')}${chip(nrm(sub(c.pdot,mv(R,c.vb)))<1e-9,'ṗ = R v<sub>b</sub>')}</div>`;
+
+  /* 3.3.2 screw */
+  const wn=nrm(c.ws);
+  const hRec=wn>1e-9?dot(c.ws,c.vs)/(wn*wn):null, qRec=wn>1e-9?scl(cross(c.ws,c.vs),1/(wn*wn)):null;
+  const hB=nrm(c.Sbw)>1e-9?dot(c.Sbw,c.Sbv):null;
+  $('c332s').innerHTML=`
+    <h3><span class="num">3.3.2</span>Screw interpretation</h3>
+    <p class="note">Every twist is a speed θ̇ times a screw axis 𝒮. For a screw through point q with direction ŝ and pitch h, the body turns about the axis at θ̇ and slides along it at hθ̇. When ω = 0 the pitch is infinite and 𝒮 = (0, v̂).</p>
+    ${c.screw?`<div class="eq">${sym('𝒮','s')} ${op('=')} ${mx(['ŝ','−ŝ × q + hŝ'])} ${op('=')} ${mx([...c.Sw,...c.Sv],tw)} <span class="op">,</span> ${sym('q')} ${op('=')} ${mx(S.q)} <span class="op">,</span> ${sym('h')} ${op('=')} <span class="coef">${fmt(S.h)} m/rad</span></div>`
+    :`<div class="eq">${sym('𝒮','s')} ${op('=')} ${mx(['0','v̂'])} ${op('=')} ${mx([...c.Sw,...c.Sv],tw)} <span class="coef">h = ∞</span></div>`}
+    <div class="eq">${sym('𝒱','s')} ${op('=')} ${Sy('𝒮<sub>s</sub><i>θ̇</i>')} ${op('=')} ${mx([...c.Sw,...c.Sv],tw)} <span class="coef">· ${fmt(c.speed,3)} ${c.screw?'rad/s':'m/s'}</span> ${op('=')} ${mx(Vs,tw)}</div>
+    <div class="subh">The same screw seen from {b}</div>
+    <div class="eq">${sym('𝒮','b')} ${op('=')} ${Sy('[Ad<sub><i>T</i><sub>bs</sub></sub>]𝒮<sub>s</sub>')} ${op('=')} ${mx([...c.Sbw,...c.Sbv],tw)}</div>
+    ${c.screw?`<div class="subh">Recovering the axis from a twist</div>
+    <div class="rows"><div>${sym('h')} = ω<sup>T</sup>v / ‖ω‖² = <span class="n">${hRec===null?'— (ω = 0)':fmt(hRec,3)}</span></div><div>closest point to the {s} origin: ${sym('q','0')} = ω × v / ‖ω‖² = <span class="n">${qRec?'('+qRec.map(x=>fmt(x)).join(', ')+')':'— (ω = 0)'}</span></div></div>`:''}
+    <div class="chips">${chip(c.screw?(hB!==null&&Math.abs(hB-S.h)<1e-9):true,'the pitch is the same in {s} and {b}')}${chip(null,c.screw?'‖ŝ‖ = 1':'‖v̂‖ = 1')}</div>`;
+
+  /* 3.3.3 exp coordinates */
+  const E=expS(c.Sw,c.Sv,travel), Tpred=mm(toT(E.R,E.p),toT(T0.R,T0.p)), predErr=mdiff(Tpred,T);
+  $('c333').innerHTML=`
+    <h3><span class="num">3.3.3</span>Exponential coordinates of rigid-body motion</h3>
+    <p class="note">Moving a distance θ along screw 𝒮 = (ω, v) is the matrix exponential of [𝒮]θ. G(θ) collects how the rotation and the slide combine into a displacement.</p>
+    <div class="eq">${Sy('e<sup>[𝒮]θ</sup>')} ${op('=')} ${mx([['e<sup>[ω]θ</sup>','G(θ)v'],['0','1']])} <span class="op">,</span> ${Sy('<i>G</i>(θ) = <i>I</i>θ + (1 − cos θ)[ω] + (θ − sin θ)[ω]<sup>2</sup>')}</div>
+    <p class="note">Travel since the last manual change: θ = <span class="n">${c.screw?`${fmt(travel,3)} rad = ${fmt(travel/D2R,1)}°`:`${fmt(travel,3)} m`}</span>. ${Math.abs(travel)<1e-9?'Press Step + or Move along screw in the Twist tab to see a non-trivial exponential.':''}</p>
+    <div class="eq">${Sy('<i>G</i>(θ)')} ${op('=')} ${mx(E.G)} <span class="op">,</span> ${Sy('e<sup>[𝒮]θ</sup>')} ${op('=')} ${mx(toT(E.R,E.p),blk4)}</div>
+    <div class="eq">${Sy('<i>T</i><sub>sb</sub>(θ) = e<sup>[𝒮]θ</sup><i>T</i><sub>sb</sub>(0)')} ${op('=')} ${mx(toT(E.R,E.p),blk4)} ${mx(toT(T0.R,T0.p),blk4)}</div>
+    <div class="chips">${chip(predErr<1e-6,'matches the current T<sub>sb</sub>')}${chip(null,'pure translation: e<sup>[𝒮]θ</sup> = [I, vθ; 0, 1]')}</div>`;
+
+  /* 3.3.3 log of T */
+  const eT=expS(c.lw,c.lv,c.lth), logErr=mdiff(toT(eT.R,eT.p),T);
+  const lwn=nrm(c.lw), lq=lwn>1e-9?cross(c.lw,c.lv):null, lh=lwn>1e-9?dot(c.lw,c.lv):null;
+  $('c333l').innerHTML=`
+    <h3><span class="num">3.3.3</span>Matrix logarithm of T<sub>sb</sub></h3>
+    <p class="note">Chasles–Mozzi: any pose can be reached from {s} by one screw motion. The logarithm finds that screw 𝒮 and distance θ, so that T<sub>sb</sub> = e<sup>[𝒮]θ</sup>. Tick “screw of T<sub>sb</sub>” below the views to draw it.</p>
+    ${c.Ginv?`<div class="rows"><div>ω = ω̂ of R<sub>sb</sub> , θ = <span class="n">${fmt(c.lth,3)} rad</span></div></div>
+    <div class="eq">${Sy('<i>G</i><sup>−1</sup>(θ) = <i>I</i>/θ − [ω]/2 + (1/θ − cot(θ/2)/2)[ω]<sup>2</sup>')}</div>
+    <div class="eq">${sym('v')} ${op('=')} ${Sy('<i>G</i><sup>−1</sup>(θ)<i>p</i>')} ${op('=')} ${mx(c.Ginv)} ${mx(p)} ${op('=')} ${mx(c.lv,cv)}</div>`
+    :`<p class="note">R = I, so the motion is a pure translation: ω = 0, v = p/‖p‖, θ = ‖p‖${nrm(p)<1e-9?' (here T = I, so there is no motion at all)':''}.</p>`}
+    <div class="eq">${sym('𝒮')} ${op('=')} ${mx([...c.lw,...c.lv],tw)} <span class="op">,</span> ${sym('θ')} ${op('=')} <span class="coef">${fmt(c.lth,3)}</span>${lq?` <span class="op">,</span> ${sym('h')} ${op('=')} <span class="coef">${fmt(lh,3)}</span> <span class="op">,</span> ${sym('q')} ${op('=')} ${mx(lq)}`:''}</div>
+    <div class="chips">${chip(logErr<1e-6,'e<sup>[𝒮]θ</sup> = T<sub>sb</sub>')}</div>`;
+
+  /* 3.4 moments */
+  $('c34b').innerHTML=`
+    <h3>Moment about the {b} origin</h3>
+    <p class="note">A force f applied at r creates the moment m = r × f = [r]f. In {b} coordinates, with the lever arm measured from the {b} origin:</p>
+    <div class="eq">${sym('m','b','c-m')} ${op('=')} ${Sy('[<i>r</i><sub>b</sub>]<i class="c-f">f</i><sub class="c-f">b</sub>')} ${op('=')} ${mx(skew(c.rb))} ${mx(c.fb,cf)} ${op('=')} ${mx(c.mb,cm)}</div>
+    ${rowsCross(c.rb,c.fb,c.mb,'')}
+    <div class="chips">${chip(Math.abs(dot(c.mb,c.rb))<1e-9,`m<sub>b</sub> · r<sub>b</sub> = <span class="n">${fmt(dot(c.mb,c.rb),3)}</span>`)}${chip(Math.abs(dot(c.mb,c.fb))<1e-9,`m<sub>b</sub> · f<sub>b</sub> = <span class="n">${fmt(dot(c.mb,c.fb),3)}</span>`)}${chip(null,`‖m<sub>b</sub>‖ = <span class="n">${fmt(nrm(c.mb))}</span>`)}</div>
+    <p class="note">${S.fFrame==='s'?'The force is fixed in {s}, so f<sub>b</sub> = R<sub>sb</sub><sup>T</sup>f<sub>s</sub> changes as the body turns.':'The force is fixed in {b}, so f<sub>b</sub> is what you set and m<sub>b</sub> does not change as the body turns.'}</p>`;
+  $('c34s').innerHTML=`
+    <h3>Moment about the {s} origin</h3>
+    <p class="note">The same force in {s}, with the lever arm now measured from the {s} origin: r<sub>s</sub> = p + R<sub>sb</sub>r<sub>b</sub>.</p>
+    <div class="eq">${sym('r','s')} ${op('=')} ${mx(p)} ${op('+')} ${mx(R,colRGB)} ${mx(c.rb)} ${op('=')} ${mx(c.rs)}</div>
+    <div class="eq">${sym('m','s','c-m')} ${op('=')} ${Sy('[<i>r</i><sub>s</sub>]<i class="c-f">f</i><sub class="c-f">s</sub>')} ${op('=')} ${mx(skew(c.rs))} ${mx(c.fs,cf)} ${op('=')} ${mx(c.ms,cm)}</div>
+    ${rowsCross(c.rs,c.fs,c.ms,'')}
+    <div class="chips">${chip(Math.abs(dot(c.ms,c.rs))<1e-9,`m<sub>s</sub> · r<sub>s</sub> = <span class="n">${fmt(dot(c.ms,c.rs),3)}</span>`)}${chip(Math.abs(dot(c.ms,c.fs))<1e-9,`m<sub>s</sub> · f<sub>s</sub> = <span class="n">${fmt(dot(c.ms,c.fs),3)}</span>`)}${chip(null,`‖m<sub>s</sub>‖ = <span class="n">${fmt(nrm(c.ms))}</span>`)}</div>`;
+
+  /* 3.4 wrench change */
+  const AdT=tr(Ad), Fs=[...c.ms,...c.fs], Fb=mv(AdT,Fs), FbErr=Math.max(...Fb.map((x,i)=>Math.abs(x-[...c.mb,...c.fb][i])));
+  const Rtms=mv(Rt,c.ms), pxf=cross(p,c.fs), diff=mv(Rt,pxf);
+  $('c34w').innerHTML=`
+    <h3>Changing the frame of a wrench</h3>
+    <p class="note">A wrench stacks moment and force: ℱ = (m, f). It changes frames with the transpose of the same adjoint that moves twists.</p>
+    <div class="eq">${Sy('ℱ<sub>b</sub> = [Ad<sub><i>T</i><sub>sb</sub></sub>]<sup>T</sup>ℱ<sub>s</sub>')}</div>
+    <div class="eq">${mx(Fb,wr)} ${op('=')} ${mx(AdT,blk6T)} ${mx(Fs,wr)}</div>
+    <div class="chips">${chip(FbErr<1e-9,'equals (m<sub>b</sub>, f<sub>b</sub>) from the {b} card')}</div>
     <div class="subh">Why not just rotate m<sub>s</sub>?</div>
-    <div class="eq"><span class="sym"><i>m</i><sub>b</sub> = <i>R</i><sub>sb</sub><sup>T</sup>(<i>m</i><sub>s</sub> − [<i>p</i>]<i>f</i><sub>s</sub>)</span></div>
-    <div class="eq"><span class="sym"><i>R</i><sub>sb</sub><sup>T</sup><i>m</i><sub>s</sub></span> ${op('=')} ${mx(Rtms)} ${op('−')} <span class="sym"><i>R</i><sub>sb</sub><sup>T</sup>(<i>p</i> × <i>f</i><sub>s</sub>)</span> ${op('=')} ${mx(diff)} ${op('=')} ${mx(sub(Rtms,diff),()=>'cm')} ${op('=')} ${sym('m','b','c-m')}</div>
-    <p class="note"><i>m</i><sub>s</sub> is the moment about the {s} origin and <i>m</i><sub>b</sub> the moment about the {b} origin. Rotating <i>m</i><sub>s</sub> only changes its coordinates. Shifting the reference point by <i>p</i> also removes <i>p</i> × <i>f</i>. The two agree only when <i>p</i> × <i>f</i><sub>s</sub> = 0${nrm(pxf)<1e-3?' (true right now)':` (right now ‖p × f<sub>s</sub>‖ = ${fmt(nrm(pxf))})`}. The force part is simpler: <i>f</i><sub>b</sub> = <i>R</i><sub>sb</sub><sup>T</sup><i>f</i><sub>s</sub>.</p>`;
+    <div class="eq">${Sy('<i>m</i><sub>b</sub> = <i>R</i><sub>sb</sub><sup>T</sup>(<i>m</i><sub>s</sub> − <i>p</i> × <i>f</i><sub>s</sub>)')} ${op('=')} ${mx(Rtms)} ${op('−')} ${mx(diff)} ${op('=')} ${mx(sub(Rtms,diff),cm)}</div>
+    <p class="note">m<sub>s</sub> and m<sub>b</sub> are moments about different points. Rotating changes only the coordinates; moving the reference point by p also removes p × f. They agree only when p × f<sub>s</sub> = 0${nrm(pxf)<1e-3?' (true right now)':` (now ‖p × f<sub>s</sub>‖ = ${fmt(nrm(pxf))})`}.</p>`;
+
+  /* 3.4 power */
+  const Ps=dot(Vs,Fs), Pb=dot(Vb,[...c.mb,...c.fb]), Ppt=dot(c.fs,c.vpt);
+  $('c34p').innerHTML=`
+    <h3>Twist meets wrench: power</h3>
+    <p class="note">The power the force delivers to the moving body is the dot product of twist and wrench. Twists move with [Ad<sub>T</sub>] and wrenches with [Ad<sub>T</sub>]<sup>T</sup>, so the product is the same in every frame.</p>
+    <div class="rows">
+      <div>${Sy('𝒱<sub>s</sub><sup>T</sup>ℱ<sub>s</sub> = ω<sub>s</sub>·m<sub>s</sub> + v<sub>s</sub>·f<sub>s</sub>')} = <span class="n">${fmt(dot(c.ws,c.ms),3)} + ${fmt(dot(c.vs,c.fs),3)} = ${fmt(Ps,3)} W</span></div>
+      <div>${Sy('𝒱<sub>b</sub><sup>T</sup>ℱ<sub>b</sub> = ω<sub>b</sub>·m<sub>b</sub> + v<sub>b</sub>·f<sub>b</sub>')} = <span class="n">${fmt(dot(c.wb,c.mb),3)} + ${fmt(dot(c.vb,c.fb),3)} = ${fmt(Pb,3)} W</span></div>
+      <div>${Sy('<i>f</i><sub>s</sub> · <i>ṙ</i><sub>s</sub>')} (force times velocity of the push point) = <span class="n">${fmt(Ppt,3)} W</span></div>
+    </div>
+    <div class="chips">${chip(Math.abs(Ps-Pb)<1e-9&&Math.abs(Ps-Ppt)<1e-9,'all three agree')}${chip(null,Math.abs(Ps)<1e-9?'no power: the force does no work on this motion':Ps>0?'positive: the force speeds the motion up':'negative: the force resists the motion')}</div>`;
+
+  $('vs-s').innerHTML=moving?`moving · θ = ${c.screw?fmt(travel/D2R,0)+'°':fmt(travel,2)+' m'}`:'';
 }
 
 /* ---------- controls ---------- */
-const sliders=[];
-let coarse=true;
+const sliders=[]; let coarse=true;
 const snapTo=(v,st)=>Math.round(v/st)*st;
-function slider(parent,{id,label,min,max,step,big,get,set,dec=2,before=null}){
+function slider(parent,{id,label,min,max,step,big,get,set,dec=2,before=null,pose=false}){
   const row=document.createElement('div'); row.className='sl';
   row.innerHTML=`<label for="${id}">${label}</label><button type="button" class="stp" aria-label="Step down by ${big}">−</button><input type="range" id="${id}" min="${min}" max="${max}" step="${coarse?big:step}"><button type="button" class="stp" aria-label="Step up by ${big}">+</button><input type="number" class="num" id="${id}-n" min="${min}" max="${max}" step="${step}" aria-label="Exact value">`;
   parent.insertBefore(row,before);
   const [dn,up]=row.querySelectorAll('.stp'), input=row.querySelector('input[type=range]'), num=row.querySelector('.num');
-  const s={input,num,big,step,sync(){input.value=get(); num.value=(+get()).toFixed(dec);}};
-  const setVal=v=>{
-    v=Math.min(max,Math.max(min,snapTo(v,step)));
-    if(id==='th'&&spinning) toggleSpin();
-    set(+v.toFixed(6)); s.sync(); dirty=true;
-  };
+  const s={row,input,num,big,step,sync(){input.value=get(); num.value=(+get()).toFixed(dec);}};
+  const setVal=v=>{ v=Math.min(max,Math.max(min,snapTo(v,step))); set(+v.toFixed(6)); if(pose) markPose(); s.sync(); dirty=true; };
   input.addEventListener('input',()=>setVal(+input.value));
-  num.addEventListener('change',()=>{ if(num.value!=='' && isFinite(+num.value)) setVal(+num.value); else s.sync(); });
-  // +/− jump to the next multiple of the coarse step
+  num.addEventListener('change',()=>{ if(num.value!==''&&isFinite(+num.value)) setVal(+num.value); else s.sync(); });
   up.addEventListener('click',()=>setVal(Math.floor(get()/big+1e-6)*big+big));
   dn.addEventListener('click',()=>setVal(Math.ceil(get()/big-1e-6)*big-big));
   sliders.push(s); return s;
 }
 const syncAll=()=>sliders.forEach(s=>s.sync());
 $('coarse').addEventListener('change',e=>{coarse=e.target.checked; sliders.forEach(s=>s.input.step=coarse?s.big:s.step); syncAll();});
-const XYZ=['x','y','z'];
-XYZ.forEach((a,i)=>slider($('g-p'),{id:'p'+a,label:`p<sub>${a}</sub>`,min:-2.5,max:2.5,step:0.05,big:0.25,get:()=>S.p[i],set:v=>S.p[i]=v}));
-const axRow=$('g-rot').querySelector('.axrow');
-slider($('g-rot'),{id:'az',label:'φ (°)',min:-180,max:180,step:1,big:15,dec:0,get:()=>S.az,set:v=>S.az=v,before:axRow});
-slider($('g-rot'),{id:'el',label:'λ (°)',min:-90,max:90,step:1,big:15,dec:0,get:()=>S.el,set:v=>S.el=v,before:axRow});
-slider($('g-rot'),{id:'th',label:'θ (°)',min:-180,max:180,step:1,big:15,dec:0,get:()=>S.th,set:v=>S.th=v,before:axRow});
+const XYZ=['x','y','z'], first=g=>$(g).querySelector('.axrow,.btnrow,.seg');
+XYZ.forEach((a,i)=>slider($('g-p'),{id:'p'+a,label:`p<sub>${a}</sub>`,min:-2.5,max:2.5,step:0.05,big:0.25,pose:true,get:()=>S.p[i],set:v=>S.p[i]=v}));
+const axRow=first('g-rot');
+slider($('g-rot'),{id:'az',label:'φ (°)',min:-180,max:180,step:1,big:15,dec:0,pose:true,before:axRow,get:()=>S.az,set:v=>S.az=v});
+slider($('g-rot'),{id:'el',label:'λ (°)',min:-90,max:90,step:1,big:15,dec:0,pose:true,before:axRow,get:()=>S.el,set:v=>S.el=v});
+slider($('g-rot'),{id:'th',label:'θ (°)',min:-180,max:180,step:1,big:15,dec:0,pose:true,before:axRow,get:()=>S.th,set:v=>S.th=v});
 const hint=document.createElement('p'); hint.className='hint';
 hint.textContent='φ is the azimuth of the axis ω̂ in the xy-plane, λ its elevation toward z, θ the angle turned about it.';
 $('g-rot').appendChild(hint);
-slider($('g-w'),{id:'rate',label:'θ̇ (°/s)',min:-180,max:180,step:1,big:15,dec:0,get:()=>S.rate,set:v=>S.rate=v,before:$('g-w').querySelector('.btnrow')});
-XYZ.forEach((a,i)=>slider($('g-r'),{id:'r'+a,label:`r<sub>${a}</sub>`,min:-1,max:1,step:0.05,big:0.25,get:()=>S.rb[i],set:v=>S.rb[i]=v,before:$('g-r').querySelector('.axrow')}));
+const sRow=first('g-s');
+slider($('g-s'),{id:'saz',label:'φ<sub>s</sub> (°)',min:-180,max:180,step:1,big:15,dec:0,pose:true,before:sRow,get:()=>S.saz,set:v=>S.saz=v});
+slider($('g-s'),{id:'sel',label:'λ<sub>s</sub> (°)',min:-90,max:90,step:1,big:15,dec:0,pose:true,before:sRow,get:()=>S.sel,set:v=>S.sel=v});
+XYZ.forEach((a,i)=>slider($('g-q'),{id:'q'+a,label:`q<sub>${a}</sub>`,min:-2.5,max:2.5,step:0.05,big:0.25,pose:true,before:first('g-q'),get:()=>S.q[i],set:v=>S.q[i]=v}));
+slider($('g-h'),{id:'h',label:'h',min:-1,max:1,step:0.05,big:0.25,pose:true,get:()=>S.h,set:v=>S.h=v});
+const rateS=slider($('g-spd'),{id:'rate',label:'θ̇ (°/s)',min:-180,max:180,step:1,big:15,dec:0,before:$('move-row'),get:()=>S.rate,set:v=>S.rate=v});
+const vrateS=slider($('g-spd'),{id:'vrate',label:'ṡ (m/s)',min:-2,max:2,step:0.05,big:0.25,before:$('move-row'),get:()=>S.vrate,set:v=>S.vrate=v});
+XYZ.forEach((a,i)=>slider($('g-r'),{id:'r'+a,label:`r<sub>${a}</sub>`,min:-1,max:1,step:0.05,big:0.25,before:first('g-r'),get:()=>S.rb[i],set:v=>S.rb[i]=v}));
 XYZ.forEach((a,i)=>slider($('g-f'),{id:'f'+a,label:`f<sub>${a}</sub>`,min:-2,max:2,step:0.05,big:0.25,get:()=>S.f[i],set:v=>S.f[i]=v}));
 
-const after=()=>{updateForceUI(); syncAll(); dirty=true;};
-// axis presets as [azimuth, elevation]
-const AX={'+x':[0,0],'-x':[180,0],'+y':[90,0],'-y':[-90,0],'+z':[0,90],'-z':[0,-90],d:[45,35.26]};
-document.querySelectorAll('[data-axis]').forEach(b=>b.addEventListener('click',()=>{ [S.az,S.el]=AX[b.dataset.axis]; after(); }));
-const RB={o:[0,0,0],x:[HALF[0],0,0],y:[0,HALF[1],0],z:[0,0,HALF[2]],c:HALF.slice()};
-document.querySelectorAll('[data-rb]').forEach(b=>b.addEventListener('click',()=>{ S.rb=RB[b.dataset.rb].slice(); after(); }));
-document.querySelectorAll('[data-fa]').forEach(b=>b.addEventListener('click',()=>{
-  const k=b.dataset.fa;
-  if(k==='0'){ S.f=[0,0,0]; after(); return; }
-  const mag=Math.max(0.25,snapTo(nrm(S.f),0.25)||1.25), v=[0,0,0];
-  v['xyz'.indexOf(k[1])] = k[0]==='-' ? -mag : mag;
-  S.f=v; after();
-}));
-const say=h=>{$('exp-text').innerHTML=h;};
-$('q-coinc').addEventListener('click',()=>{ S.p=[0,0,0]; S.th=0; if(spinning) toggleSpin(); after(); say('{b} and {s} coincide: p = 0 and R<sub>sb</sub> = I. Now r<sub>s</sub> = r<sub>b</sub>, f<sub>s</sub> = f<sub>b</sub> and m<sub>s</sub> = m<sub>b</sub>. Change one thing at a time from here.'); });
-$('q-origin').addEventListener('click',()=>{ S.p=[0,0,0]; after(); say('The body origin sits on the {s} origin (p = 0). Both torques are now about the same point, so m<sub>b</sub> = R<sub>sb</sub><sup>T</sup>m<sub>s</sub> exactly: only the coordinates differ.'); });
-$('q-norot').addEventListener('click',()=>{ S.th=0; if(spinning) toggleSpin(); after(); say('R<sub>sb</sub> = I: the axes of {b} are parallel to those of {s}. Vectors have the same coordinates in both frames, but m<sub>s</sub> and m<sub>b</sub> still differ by p × f.'); });
-$('q-zero').addEventListener('click',()=>{ S.p=[0,0,0]; S.az=0; S.el=90; S.th=0; S.rate=0; S.rb=[0,0,0]; S.fFrame='s'; S.f=[0,0,0]; if(spinning) toggleSpin(); after(); say('Everything is zero: {b} coincides with {s}, R<sub>sb</sub> = I, the push point is at the origin, and there is no force, rotation or angular speed. All torques are zero. Now raise one value at a time with the + buttons and watch which terms appear.'); });
-$('q-clean').addEventListener('click',()=>{ S.p=[0,0,0]; S.th=0; S.rb=[0,0,0]; S.fFrame='s'; S.f=[1.25,0,0]; if(spinning) toggleSpin(); after(); say('Everything at the origin and aligned with x: no lever arm, so no torque. Press + on r<sub>y</sub> and watch m appear along −z, because ŷ × x̂ = −ẑ.'); });
+// tabs
+const TABS=['pose','twist','force'];
+function selectTab(t){
+  TABS.forEach(k=>{ $('tab-'+k).setAttribute('aria-selected',k===t); $('pn-'+k).hidden=k!==t; });
+  try{localStorage.setItem('tab',t);}catch(e){}
+}
+TABS.forEach(k=>$('tab-'+k).addEventListener('click',()=>selectTab(k)));
+try{ const t=localStorage.getItem('tab'); if(TABS.includes(t)) selectTab(t); }catch(e){}
 
-function setForceFrame(fr){
-  if(fr===S.fFrame) return;
+function updateUI(){
+  $('ff-s').setAttribute('aria-pressed',S.fFrame==='s'); $('ff-b').setAttribute('aria-pressed',S.fFrame==='b');
+  $('f-title').innerHTML=S.fFrame==='s'?'<i>f</i><sub>s</sub> in {<i>s</i>}':'<i>f</i><sub>b</sub> in {<i>b</i>}';
+  $('f-along').innerHTML=S.fFrame==='s'?'f along {s}':'f along {b}';
+  const sc=S.tmode==='screw';
+  $('tm-screw').setAttribute('aria-pressed',sc); $('tm-trans').setAttribute('aria-pressed',!sc);
+  $('g-q').hidden=!sc; $('g-h').hidden=!sc; rateS.row.hidden=!sc; vrateS.row.hidden=sc;
+  $('s-title').innerHTML=sc?'ŝ in {<i>s</i>}':'v̂ in {<i>s</i>}';
+  $('spd-title').innerHTML=sc?'<i>θ̇</i>':'<i>ṡ</i> = ‖v‖';
+  $('move').textContent=moving?'Stop':(sc?'Move along screw':'Slide');
+  $('move').setAttribute('aria-pressed',moving);
+  $('step-hint').innerHTML=sc?'Each step applies e<sup>[𝒮]Δθ</sup> with Δθ = 15°.':'Each step applies e<sup>[𝒮]Δθ</sup> with Δθ = 0.25 m.';
+}
+const after=()=>{updateUI(); syncAll(); dirty=true;};
+const say=h=>{$('exp-text').innerHTML=h;};
+function setMoving(on){ moving=on; updateUI(); dirty=true; }
+
+// motion along the screw
+function stepMotion(d){
   compute();
-  S.f = (fr==='s' ? C.fs : C.fb).map(x=>Math.round(x*100)/100);
-  S.fFrame=fr; after();
+  const E=expS(C.Sw,C.Sv,d), R2=mm(E.R,C.R), p2=add(mv(E.R,C.p),E.p);
+  setPose(R2,p2); travel+=d;
+  if(moving&&p2.some(x=>Math.abs(x)>2.5+1e-9)){ setMoving(false); say('Stopped: the body reached the edge of the ±2.5 m workspace. Move it back with the Pose sliders or “Body at origin”.'); }
+  syncAll(); dirty=true;
 }
-function updateForceUI(){
-  $('ff-s').setAttribute('aria-pressed',S.fFrame==='s');
-  $('ff-b').setAttribute('aria-pressed',S.fFrame==='b');
-  $('f-title').innerHTML = S.fFrame==='s' ? '<i>f</i><sub>s</sub> in {<i>s</i>}' : '<i>f</i><sub>b</sub> in {<i>b</i>}';
-  $('f-along').innerHTML = S.fFrame==='s' ? 'f along {s}' : 'f along {b}';
-}
+$('move').addEventListener('click',()=>setMoving(!moving));
+const stepSize=()=>S.tmode==='screw'?15*D2R:0.25;
+$('step-up').addEventListener('click',()=>stepMotion(stepSize()));
+$('step-dn').addEventListener('click',()=>stepMotion(-stepSize()));
+$('tm-screw').addEventListener('click',()=>{S.tmode='screw'; markPose(); after();});
+$('tm-trans').addEventListener('click',()=>{S.tmode='trans'; markPose(); after();});
+
+// presets
+const AX={'+x':[0,0],'-x':[180,0],'+y':[90,0],'-y':[-90,0],'+z':[0,90],'-z':[0,-90],d:[45,35.26]};
+document.querySelectorAll('[data-axis]').forEach(b=>b.addEventListener('click',()=>{[S.az,S.el]=AX[b.dataset.axis]; markPose(); after();}));
+const azel=v=>[Math.atan2(v[1],v[0])/D2R, Math.asin(Math.max(-1,Math.min(1,v[2])))/D2R].map(x=>+x.toFixed(4));
+const bodyAxis=col=>{compute(); return azel([C.R[0][col],C.R[1][col],C.R[2][col]]);};
+document.querySelectorAll('[data-sdir]').forEach(b=>b.addEventListener('click',()=>{
+  const k=b.dataset.sdir;
+  [S.saz,S.sel]=k==='bx'?bodyAxis(0):k==='bz'?bodyAxis(2):AX[k];
+  markPose(); after();
+}));
+$('q-so').addEventListener('click',()=>{S.q=[0,0,0]; markPose(); after();});
+$('q-bo').addEventListener('click',()=>{S.q=S.p.map(x=>+x.toFixed(4)); markPose(); after();});
+const TP={
+  spin(){ S.tmode='screw'; [S.saz,S.sel]=bodyAxis(2); S.q=S.p.map(x=>+x.toFixed(4)); S.h=0; if(!S.rate) S.rate=60;
+    return 'Spin in place: the screw is the body’s own ẑ<sub>b</sub> axis through the {b} origin, so ṗ = 0 and v<sub>b</sub> = 0, but v<sub>s</sub> ≠ 0.'; },
+  orbit(){ S.tmode='screw'; S.saz=0; S.sel=90; S.q=[0,0,0]; S.h=0; if(!S.rate) S.rate=60;
+    return 'Orbit: the screw is the z-axis of {s}. The body circles it and ṗ ≠ 0, yet v<sub>s</sub> = 0.'; },
+  helix(){ S.tmode='screw'; S.saz=0; S.sel=90; S.q=[0,0,0]; S.h=0.25; if(!S.rate) S.rate=60;
+    return 'Helix: pitch h = 0.25 m/rad, so each radian of turning also slides the body 0.25 m along z.'; },
+  slide(){ S.tmode='trans'; [S.saz,S.sel]=bodyAxis(0); if(!S.vrate) S.vrate=0.5;
+    return 'Pure translation along the body’s x̂<sub>b</sub> axis: ω = 0, so 𝒱<sub>s</sub> = (0, v) and the orientation never changes.'; },
+};
+document.querySelectorAll('[data-tp]').forEach(b=>b.addEventListener('click',()=>{ const msg=TP[b.dataset.tp](); markPose(); after(); say(msg+' Press “'+$('move').textContent+'” or the Step buttons.'); }));
+const RB={o:[0,0,0],x:[HALF[0],0,0],y:[0,HALF[1],0],z:[0,0,HALF[2]],c:HALF.slice()};
+document.querySelectorAll('[data-rb]').forEach(b=>b.addEventListener('click',()=>{S.rb=RB[b.dataset.rb].slice(); after();}));
+document.querySelectorAll('[data-fa]').forEach(b=>b.addEventListener('click',()=>{
+  const k=b.dataset.fa; if(k==='0'){S.f=[0,0,0]; after(); return;}
+  const mag=Math.max(0.25,snapTo(nrm(S.f),0.25)||1.25), v=[0,0,0];
+  v['xyz'.indexOf(k[1])]=k[0]==='-'?-mag:mag; S.f=v; after();
+}));
+function setForceFrame(fr){ if(fr===S.fFrame) return; compute(); S.f=(fr==='s'?C.fs:C.fb).map(x=>Math.round(x*100)/100); S.fFrame=fr; after(); }
 $('ff-s').addEventListener('click',()=>setForceFrame('s'));
 $('ff-b').addEventListener('click',()=>setForceFrame('b'));
-function toggleSpin(){
-  spinning=!spinning; $('spin').setAttribute('aria-pressed',spinning);
-  $('spin').textContent = spinning ? 'Stop spinning' : 'Spin about ω̂';
-}
-$('spin').addEventListener('click',toggleSpin);
-$('reset').addEventListener('click',()=>{
-  Object.assign(S,JSON.parse(JSON.stringify(DEFAULT))); if(spinning) toggleSpin();
-  after(); say('Back to the starting pose.');
-});
-[['t-r','r'],['t-m','m'],['t-w','w'],['t-g','g']].forEach(([id,k])=>$(id).addEventListener('change',e=>{show[k]=e.target.checked; dirty=true;}));
+
+// fixed-frame vs body-frame operations
+(function buildOps(){
+  const rowsDef=[['rot',1,'Rotate +15°'],['rot',-1,'Rotate −15°'],['trans',1,'Move +0.25'],['trans',-1,'Move −0.25']];
+  $('ops').innerHTML=rowsDef.map(([k,sg,lbl])=>`<tr><td>${lbl}</td>${['s','b'].map(fr=>`<td>${XYZ.map((a,i)=>`<button type="button" class="c-${a}" data-op="${k},${fr},${i},${sg}" aria-label="${lbl} ${fr==='s'?'about {s}':'about {b}'} ${a}">${a}</button>`).join(' ')}</td>`).join('')}</tr>`).join('');
+  $('ops').addEventListener('click',e=>{
+    const b=e.target.closest('[data-op]'); if(!b) return;
+    const [kind,frame,i,sign]=b.dataset.op.split(','); compute();
+    const ax=[0,0,0]; ax[+i]=1;
+    const Op=kind==='rot'?toT(rodr(ax,+sign*15*D2R),[0,0,0]):toT(I3,scl(ax,+sign*0.25));
+    const T=toT(C.R,C.p), T2=frame==='s'?mm(Op,T):mm(T,Op);
+    lastOp={kind,frame,i:+i,sign:+sign,Op,T,T2};
+    setPose(Rof(T2),pof(T2)); markPose(); after();
+  });
+})();
+
+const stop=()=>{ if(moving) setMoving(false); };
+$('q-zero').addEventListener('click',()=>{ Object.assign(S,{p:[0,0,0],az:0,el:90,th:0,rb:[0,0,0],fFrame:'s',f:[0,0,0],tmode:'screw',saz:0,sel:90,q:[0,0,0],h:0,rate:0,vrate:0}); stop(); lastOp=null; markPose(); after();
+  say('Everything is zero: {b} coincides with {s} (T<sub>sb</sub> = I), the push point is at the origin, and there is no force and no twist. Raise one value at a time with the + buttons and watch which terms appear.'); });
+$('q-coinc').addEventListener('click',()=>{ S.p=[0,0,0]; S.th=0; markPose(); after(); say('{b} and {s} coincide: T<sub>sb</sub> = I. Now r<sub>s</sub> = r<sub>b</sub>, f<sub>s</sub> = f<sub>b</sub>, 𝒱<sub>s</sub> = 𝒱<sub>b</sub> and ℱ<sub>s</sub> = ℱ<sub>b</sub>.'); });
+$('q-origin').addEventListener('click',()=>{ S.p=[0,0,0]; markPose(); after(); say('The body origin sits on the {s} origin (p = 0). The adjoint becomes block-diagonal, so twists and wrenches just rotate: m<sub>b</sub> = R<sub>sb</sub><sup>T</sup>m<sub>s</sub> and v<sub>b</sub> = R<sub>sb</sub><sup>T</sup>v<sub>s</sub>.'); });
+$('q-norot').addEventListener('click',()=>{ S.th=0; markPose(); after(); say('R<sub>sb</sub> = I: the axes of {b} are parallel to those of {s}. Free vectors have the same coordinates in both frames, but moments and linear velocities still differ, by p × f and p × ω.'); });
+$('q-clean').addEventListener('click',()=>{ Object.assign(S,{p:[0,0,0],th:0,rb:[0,0,0],fFrame:'s',f:[1.25,0,0]}); stop(); markPose(); after(); say('Everything at the origin and aligned with x: no lever arm, so no moment. Press + on r<sub>y</sub> in the Force tab and m appears along −z, because ŷ × x̂ = −ẑ.'); });
+$('q-planar').addEventListener('click',()=>{
+  if(S.el<0) S.th=-S.th;
+  S.el=90; S.p[2]=0; S.rb[2]=0; S.f[2]=0;
+  if(S.tmode==='screw'){ S.sel=S.sel<0?-90:90; S.h=0; S.q[2]=0; } else S.sel=0;
+  markPose(); after(); say('Planar now: the body turns only about z and everything lies in the xy-plane. See §3.1 for the reduced 3×3 forms.'); });
+$('reset').addEventListener('click',()=>{ Object.assign(S,JSON.parse(JSON.stringify(DEFAULT))); stop(); lastOp=null; markPose(); after(); say('Back to the example pose.'); });
+[['t-r','r'],['t-m','m'],['t-t','t'],['t-w','w'],['t-l','l'],['t-g','g']].forEach(([id,k])=>$(id).addEventListener('change',e=>{show[k]=e.target.checked; dirty=true;}));
 
 /* ---------- experiments ---------- */
 const EXPS=[
-  {name:'Push through the {b} origin', go(){S.rb=[0,0,0]; S.fFrame='s'; S.f=[0,1.25,0];},
-   text:'The push point is the {b} origin, so r<sub>b</sub> = 0 and [r<sub>b</sub>] is the zero matrix: <b>m<sub>b</sub> = 0</b>. About the {s} origin the same force still has lever arm r<sub>s</sub> = p, so m<sub>s</sub> = p × f<sub>s</sub> ≠ 0. Torque always depends on the reference point.'},
-  {name:'Push along the lever arm', go(){S.rb=[0.75,0,0]; S.fFrame='b'; S.f=[1.5,0,0];},
-   text:'f<sub>b</sub> is parallel to r<sub>b</sub>, so [r<sub>b</sub>]f<sub>b</sub> = 0 (each row of the skew product cancels). m<sub>s</sub> is not zero, because r<sub>s</sub> is not parallel to f<sub>s</sub>. Slide p toward the line of action to make it vanish too.'},
-  {name:'Gravity on a tipping body', go(){S.rb=[0.75,0,0.25]; S.fFrame='s'; S.f=[0,0,-1.5]; S.az=90; S.el=0; S.th=0; if(!spinning) toggleSpin();},
-   text:'The force is fixed in {s}, like a weight. The body spins about ŷ: f<sub>s</sub> stays (0, 0, −1.5) while f<sub>b</sub> = R<sub>sb</sub><sup>T</sup>f<sub>s</sub> keeps changing. In the body view, gravity appears to swing around the box.'},
-  {name:'Thruster on a spinning body', go(){S.rb=[0.75,0,0]; S.fFrame='b'; S.f=[0,1.25,0]; S.az=0; S.el=90; S.th=0; if(!spinning) toggleSpin();},
-   text:'The force is fixed in {b}, like a thruster bolted to the box. m<sub>b</sub> = r<sub>b</sub> × f<sub>b</sub> stays constant, while f<sub>s</sub> = R<sub>sb</sub>f<sub>b</sub> rotates and m<sub>s</sub> keeps changing.'},
-  {name:'Half turn', go(){S.th=180; S.az=45; S.el=35.26; if(spinning) toggleSpin();},
-   text:'At θ = 180° the sin θ term vanishes and Rodrigues gives R = I + 2[ω̂]². The result is symmetric: R = R<sup>T</sup>, so a half turn is its own inverse.'},
+  {name:'Push through the {b} origin', go(){S.rb=[0,0,0]; S.fFrame='s'; S.f=[0,1.25,0];}, tab:'force',
+   text:'The push point is the {b} origin, so r<sub>b</sub> = 0 and [r<sub>b</sub>] is the zero matrix: <b>m<sub>b</sub> = 0</b>. About the {s} origin the same force still has lever arm p, so m<sub>s</sub> = p × f<sub>s</sub> ≠ 0. A moment always depends on the reference point.'},
+  {name:'Push along the lever arm', go(){S.rb=[0.75,0,0]; S.fFrame='b'; S.f=[1.5,0,0];}, tab:'force',
+   text:'f<sub>b</sub> is parallel to r<sub>b</sub>, so [r<sub>b</sub>]f<sub>b</sub> = 0. m<sub>s</sub> is not zero, because r<sub>s</sub> is not parallel to f<sub>s</sub>.'},
+  {name:'Spin in place', go(){TP.spin(); S.rate=60; markPose(); setMoving(true);}, tab:'twist',
+   text:'The screw passes through the {b} origin, so the box turns on the spot: ṗ = 0 and v<sub>b</sub> = 0. Yet v<sub>s</sub> ≠ 0: it is the velocity of the body point at the {s} origin, which swings around the axis. See §3.3.2.'},
+  {name:'Orbit the z-axis', go(){TP.orbit(); S.rate=60; markPose(); setMoving(true);}, tab:'twist',
+   text:'The screw is the z-axis of {s}. The body orbits and ṗ ≠ 0, but v<sub>s</sub> = 0, because the body point at the {s} origin lies on the axis and does not move.'},
+  {name:'Helix', go(){TP.helix(); S.rate=90; S.p=[1.25,0,-2]; markPose(); setMoving(true);}, tab:'twist',
+   text:'Pitch h = 0.25 m/rad: every radian of turning also slides the body 0.25 m along the axis, so v<sub>s</sub> gains the component hω. Watch e<sup>[𝒮]θ</sup> in §3.3.3 reproduce the pose.'},
+  {name:'Gravity on a tipping body', go(){S.rb=[0.75,0,0.25]; S.fFrame='s'; S.f=[0,0,-1.5]; S.tmode='screw'; [S.saz,S.sel]=bodyAxis(1); S.q=S.p.slice(); S.h=0; S.rate=60; markPose(); setMoving(true);},
+   text:'The force is fixed in {s}, like a weight, and the body turns about its own ŷ<sub>b</sub> axis. f<sub>s</sub> stays put while f<sub>b</sub> = R<sub>sb</sub><sup>T</sup>f<sub>s</sub> keeps changing. The power card in §3.4 shows the weight alternately doing positive and negative work.'},
+  {name:'Thruster on a spinning body', go(){S.rb=[0.75,0,0]; S.fFrame='b'; S.f=[0,1.25,0]; TP.spin(); S.rate=60; markPose(); setMoving(true);},
+   text:'The force is fixed in {b}, like a thruster, and the body spins about its own ẑ<sub>b</sub>. m<sub>b</sub> stays constant while f<sub>s</sub> and m<sub>s</sub> rotate. The thruster pushes along the motion, so the power stays positive.'},
+  {name:'Half turn', go(){S.th=180; S.az=45; S.el=35.26; markPose(); stop();}, tab:'pose',
+   text:'At θ = 180° the sin θ term vanishes: R = I + 2[ω̂]², which is symmetric, so a half turn is its own inverse. The log in §3.2.3 must use the special formula for θ = π.'},
 ];
 EXPS.forEach(e=>{
   const b=document.createElement('button'); b.type='button'; b.textContent=e.name;
-  b.addEventListener('click',()=>{ if(spinning && !/spinning|tipping/.test(e.name)) toggleSpin(); e.go(); after(); $('exp-text').innerHTML=e.text; dirty=true; });
+  b.addEventListener('click',()=>{ e.go(); if(e.tab) selectTab(e.tab); after(); say(e.text); });
   $('exps').appendChild(b);
 });
 
 /* ---------- 3D ---------- */
 let TOK={};
-function readTokens(){
-  const cs=getComputedStyle(document.documentElement);
-  ['scene','grid','ink','muted','x','y','z','force','torque','axis','surface2','rule'].forEach(k=>TOK[k]=cs.getPropertyValue('--'+k).trim()||'#888');
-}
+function readTokens(){ const cs=getComputedStyle(document.documentElement);
+  ['scene','grid','ink','muted','x','y','z','force','torque','axis','vel','surface2'].forEach(k=>TOK[k]=cs.getPropertyValue('--'+k).trim()||'#888'); }
 readTokens();
-const views=[];
-const UP=new THREE.Vector3(0,1,0);
+const views=[], UP=new THREE.Vector3(0,1,0);
 
 function makeView(canvas,isBody){
   const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
@@ -517,27 +858,22 @@ function makeView(canvas,isBody){
   const root=new THREE.Group(); root.matrixAutoUpdate=false; scene.add(root);
   const body=new THREE.Group(); body.matrixAutoUpdate=false; root.add(body);
   const mats={}, labels=[];
-  const mat=(k,Type=THREE.MeshLambertMaterial,o={})=>{const m=new Type(o); m.userData.k=k; (mats[k]=mats[k]||[]).push(m); return m;};
-
+  const mat=(k,Type=THREE.MeshLambertMaterial,o={})=>{const m=new Type(o); (mats[k]=mats[k]||[]).push(m); return m;};
   function Arrow(k,sr=0.03,hr=0.085,hl=0.22){
     const g=new THREE.Group(), m=mat(k);
-    const shaft=new THREE.Mesh(new THREE.CylinderGeometry(sr,sr,1,14),m);
-    const head=new THREE.Mesh(new THREE.ConeGeometry(hr,hl,18),m);
+    const shaft=new THREE.Mesh(new THREE.CylinderGeometry(sr,sr,1,14),m), head=new THREE.Mesh(new THREE.ConeGeometry(hr,hl,18),m);
     g.add(shaft,head);
-    return {g,set(o,v){
-      const L=nrm(v); g.userData.len=L;
-      if(L<1e-3){g.visible=false;return;} g.visible=g.userData.on!==false;
-      g.position.set(...o);
-      g.quaternion.setFromUnitVectors(UP,new THREE.Vector3(...v).divideScalar(L));
+    return {g,set(o,v,on=true){
+      const L=nrm(v); if(L<1e-3||!on){g.visible=false;return;} g.visible=true;
+      g.position.set(...o); g.quaternion.setFromUnitVectors(UP,new THREE.Vector3(...v).divideScalar(L));
       const h=Math.min(hl,L*0.45), s=L-h;
-      shaft.scale.set(1,Math.max(s,1e-4),1); shaft.position.y=s/2;
-      head.scale.set(h/hl,h/hl,h/hl); head.position.y=s+h/2;
+      shaft.scale.set(1,Math.max(s,1e-4),1); shaft.position.y=s/2; head.scale.set(h/hl,h/hl,h/hl); head.position.y=s+h/2;
     }};
   }
   function DLine(k,dash=0.09,gap=0.06){
     const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
     const line=new THREE.Line(geo,mat(k,THREE.LineDashedMaterial,{dashSize:dash,gapSize:gap}));
-    return {line,set(a,b){const P=geo.attributes.position; P.setXYZ(0,...a); P.setXYZ(1,...b); P.needsUpdate=true; geo.computeBoundingSphere(); line.computeLineDistances();}};
+    return {line,set(a,b,on=true){line.visible=on; if(!on) return; const P=geo.attributes.position; P.setXYZ(0,...a); P.setXYZ(1,...b); P.needsUpdate=true; geo.computeBoundingSphere(); line.computeLineDistances();}};
   }
   function Label(main,subTxt,k,size=0.42){
     const cv=document.createElement('canvas'); cv.width=256; cv.height=128;
@@ -545,27 +881,22 @@ function makeView(canvas,isBody){
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
     sp.scale.set(size,size/2,1); sp.renderOrder=10;
     const L={sp,draw(){
-      const c=cv.getContext('2d'); c.clearRect(0,0,256,128);
-      c.textBaseline='middle'; c.lineJoin='round';
+      const c=cv.getContext('2d'); c.clearRect(0,0,256,128); c.textBaseline='middle'; c.lineJoin='round';
       const mainF="italic 600 64px 'STIX Two Text', 'Times New Roman', serif", subF="400 40px 'STIX Two Text', 'Times New Roman', serif";
       c.font=mainF; const w1=c.measureText(main).width; c.font=subF; const w2=subTxt?c.measureText(subTxt).width+2:0;
-      let x=(256-w1-w2)/2;
-      const paint=(txt,font,xx,yy)=>{c.font=font; c.lineWidth=10; c.strokeStyle=TOK.scene; c.strokeText(txt,xx,yy); c.fillStyle=TOK[k]; c.fillText(txt,xx,yy);};
-      paint(main,mainF,x,60); if(subTxt) paint(subTxt,subF,x+w1+2,80);
-      tex.needsUpdate=true;
+      const x=(256-w1-w2)/2;
+      const paint=(t,f,xx,yy)=>{c.font=f; c.lineWidth=10; c.strokeStyle=TOK.scene; c.strokeText(t,xx,yy); c.fillStyle=TOK[k]; c.fillText(t,xx,yy);};
+      paint(main,mainF,x,60); if(subTxt) paint(subTxt,subF,x+w1+2,80); tex.needsUpdate=true;
     }};
     L.draw(); labels.push(L); return L;
   }
   function Axes(len,r,tag,parent){
-    const out={};
     ['x','y','z'].forEach((a,i)=>{
-      const A=Arrow(a,r,r*2.6,len*0.2); const v=[0,0,0]; v[i]=len; A.set([0,0,0],v); parent.add(A.g);
-      const lb=Label(a,tag,a,0.36); const pos=[0,0,0]; pos[i]=len+0.14; lb.sp.position.set(...pos); parent.add(lb.sp);
+      const A=Arrow(a,r,r*2.6,len*0.2), v=[0,0,0]; v[i]=len; A.set([0,0,0],v); parent.add(A.g);
+      const lb=Label(a,tag,a,0.36), pos=[0,0,0]; pos[i]=len+0.14; lb.sp.position.set(...pos); parent.add(lb.sp);
     });
-    const o=new THREE.Mesh(new THREE.SphereGeometry(r*1.9,16,12),mat('ink')); parent.add(o);
-    return out;
+    parent.add(new THREE.Mesh(new THREE.SphereGeometry(r*1.9,16,12),mat('ink')));
   }
-  // grid in {s}
   let grid=null;
   function makeGrid(){
     if(grid){root.remove(grid); grid.geometry.dispose(); grid.material.dispose();}
@@ -574,59 +905,65 @@ function makeView(canvas,isBody){
   }
   makeGrid();
   Axes(1.4,0.035,'s',root);
-  const sLab=Label('{s}','', 'ink',0.5); sLab.sp.position.set(-0.28,-0.28,0.2); root.add(sLab.sp);
+  const sLab=Label('{s}','','ink',0.5); sLab.sp.position.set(-0.28,-0.28,0.2); root.add(sLab.sp);
   Axes(0.9,0.028,'b',body);
   const bLab=Label('{b}','','ink',0.5); bLab.sp.position.set(-0.25,-0.25,-0.3); body.add(bLab.sp);
-  // box
   const boxGeo=new THREE.BoxGeometry(2*HALF[0],2*HALF[1],2*HALF[2]);
-  const boxM=mat('box',THREE.MeshLambertMaterial,{transparent:true,opacity:0.32,depthWrite:false});
-  body.add(new THREE.Mesh(boxGeo,boxM));
+  body.add(new THREE.Mesh(boxGeo,mat('box',THREE.MeshLambertMaterial,{transparent:true,opacity:0.32,depthWrite:false})));
   body.add(new THREE.LineSegments(new THREE.EdgesGeometry(boxGeo),mat('ink',THREE.LineBasicMaterial,{transparent:true,opacity:0.7})));
   const pt=new THREE.Mesh(new THREE.SphereGeometry(0.055,16,12),mat('force')); body.add(pt);
-  // vectors
+  // statics
   const fA=Arrow('force',0.035,0.1,0.25), mbA=Arrow('torque',0.035,0.1,0.25), msA=Arrow('torque',0.035,0.1,0.25);
   body.add(fA.g,mbA.g); root.add(msA.g);
-  const wA=Arrow('axis',0.03,0.09,0.22); root.add(wA.g); const wvLab=Label('ω','s','axis',0.4); root.add(wvLab.sp);
-  const rbL=DLine('ink'), rsL=DLine('ink'), pL=DLine('muted'), wL=DLine('axis',0.05,0.07);
-  body.add(rbL.line); root.add(rsL.line,pL.line,wL.line);
-  const fLab=Label('f','','force'), mbLab=Label('m','b','torque'), msLab=Label('m','s','torque');
-  const rbLab=Label('r','b','ink',0.36), rsLab=Label('r','s','ink',0.36), pLab=Label('p','','muted',0.36), wLab=Label('ω̂','','axis',0.4);
-  body.add(fLab.sp,mbLab.sp,rbLab.sp); root.add(msLab.sp,rsLab.sp,pLab.sp,wLab.sp);
+  const rbL=DLine('ink'), rsL=DLine('ink'), pL=DLine('muted'), wL=DLine('muted',0.05,0.07), logL=DLine('ink',0.22,0.1);
+  body.add(rbL.line); root.add(rsL.line,pL.line,wL.line,logL.line);
+  // twist
+  const sL=DLine('axis',0.16,0.08), qM=new THREE.Mesh(new THREE.SphereGeometry(0.06,16,12),mat('axis'));
+  const wA=Arrow('axis',0.035,0.1,0.25), vsA=Arrow('vel',0.03,0.09,0.22), pdA=Arrow('vel',0.03,0.09,0.22), vpA=Arrow('vel',0.022,0.07,0.18);
+  root.add(sL.line,qM,wA.g,vsA.g,pdA.g,vpA.g);
+  const fLab=Label('f','','force'), mbLab=Label('m','b','torque'), msLab=Label('m','s','torque'), rbLab=Label('r','b','ink',0.36), rsLab=Label('r','s','ink',0.36), pLab=Label('p','','muted',0.36), wLab=Label('ω̂','','muted',0.4);
+  const wsLab=Label('ω','s','axis'), vsLab=Label('v','s','vel'), pdLab=Label('ṗ','','vel'), qLab=Label('q','','axis',0.36), logLab=Label('𝒮','log','ink',0.42);
+  body.add(fLab.sp,mbLab.sp,rbLab.sp); root.add(msLab.sp,rsLab.sp,pLab.sp,wLab.sp,wsLab.sp,vsLab.sp,pdLab.sp,qLab.sp,logLab.sp);
+  const tip=(o,v,k=1.1,pad=0.14)=>{const n=nrm(v); return add(o,scl(v,k+(n>1e-6?pad/n:0)));};
+  const vis=(lab,on,pos)=>{lab.sp.visible=!!on; if(on&&pos) lab.sp.position.set(...pos);};
 
   const T=new THREE.Matrix4(), Ti=new THREE.Matrix4();
-  const V={renderer,scene,cam,ctl,needs:true,
+  const V={needs:true,
     update(){
-      const {R,p,rb,rs,fb,mb,ms,w}=C;
+      const c=C, R=c.R, p=c.p;
       T.set(R[0][0],R[0][1],R[0][2],p[0], R[1][0],R[1][1],R[1][2],p[1], R[2][0],R[2][1],R[2][2],p[2], 0,0,0,1);
       body.matrix.copy(T);
       if(isBody){Ti.copy(T).invert(); root.matrix.copy(Ti);} else root.matrix.identity();
       root.matrixWorldNeedsUpdate=true;
-      pt.position.set(...rb);
-      fA.set(rb,fb); fLab.sp.position.set(...add(rb,scl(fb,1.12)));
-      fLab.sp.visible=fA.g.visible;
-      mbA.g.userData.on=show.m; msA.g.userData.on=show.m;
-      mbA.set([0,0,0],scl(mb,0.5)); msA.set([0,0,0],scl(ms,0.5));
-      mbLab.sp.position.set(...scl(mb,0.5*1.1+0.12/Math.max(nrm(mb),1e-3))); mbLab.sp.visible=show.m&&mbA.g.visible;
-      msLab.sp.position.set(...scl(ms,0.5*1.1+0.12/Math.max(nrm(ms),1e-3))); msLab.sp.visible=show.m&&msA.g.visible;
-      rbL.set([0,0,0],rb); rsL.set([0,0,0],rs); pL.set([0,0,0],p);
-      rbLab.sp.position.set(...scl(rb,0.5)); rsLab.sp.position.set(...add(scl(rs,0.5),[0,0,0.14])); pLab.sp.position.set(...add(scl(p,0.5),[0,0,-0.14]));
-      [rbL.line,rsL.line,pL.line].forEach(l=>l.visible=show.r);
-      rbLab.sp.visible=show.r&&nrm(rb)>0.15; rsLab.sp.visible=show.r; pLab.sp.visible=show.r&&nrm(p)>0.2;
-      wL.set(sub(p,scl(w,1.5)),add(p,scl(w,1.5))); wL.line.visible=show.w;
-      wA.g.userData.on=show.w; wA.set(p,scl(C.ws,0.8)); wvLab.sp.position.set(...add(p,add(scl(C.ws,0.8),[0.15,0.15,0]))); wvLab.sp.visible=show.w&&wA.g.visible;
-      wLab.sp.position.set(...add(p,scl(w,1.68))); wLab.sp.visible=show.w;
-      grid.visible=show.g;
-      V.needs=true;
+      pt.position.set(...c.rb);
+      fA.set(c.rb,c.fb); vis(fLab,fA.g.visible,tip(c.rb,c.fb,1.0));
+      mbA.set([0,0,0],scl(c.mb,0.5),show.m); vis(mbLab,mbA.g.visible,tip([0,0,0],scl(c.mb,0.5)));
+      msA.set([0,0,0],scl(c.ms,0.5),show.m); vis(msLab,msA.g.visible,tip([0,0,0],scl(c.ms,0.5)));
+      rbL.set([0,0,0],c.rb,show.r); rsL.set([0,0,0],c.rs,show.r); pL.set([0,0,0],p,show.r);
+      vis(rbLab,show.r&&nrm(c.rb)>0.15,scl(c.rb,0.5)); vis(rsLab,show.r&&nrm(c.rs)>0.15,add(scl(c.rs,0.5),[0,0,0.14])); vis(pLab,show.r&&nrm(p)>0.2,add(scl(p,0.5),[0,0,-0.14]));
+      const poseAxis=show.w&&Math.abs(c.th)>1e-6;
+      wL.set(sub(p,scl(c.w,1.5)),add(p,scl(c.w,1.5)),poseAxis); vis(wLab,poseAxis,add(p,scl(c.w,1.68)));
+      // screw of the twist
+      const on=show.t, base=c.screw?S.q:p;
+      sL.set(sub(base,scl(c.sh,3)),add(base,scl(c.sh,3)),on);
+      qM.visible=on&&c.screw; qM.position.set(...S.q); vis(qLab,on&&c.screw,add(S.q,[0.12,0.12,-0.12]));
+      wA.set(base,scl(c.ws,0.8),on); vis(wsLab,wA.g.visible,tip(base,scl(c.ws,0.8)));
+      vsA.set([0,0,0],scl(c.vs,0.6),on); vis(vsLab,vsA.g.visible,tip([0,0,0],scl(c.vs,0.6)));
+      pdA.set(p,scl(c.pdot,0.6),on); vis(pdLab,pdA.g.visible,tip(p,scl(c.pdot,0.6)));
+      vpA.set(c.rs,scl(c.vpt,0.6),on);
+      // screw of T_sb from the log
+      const lon=show.l&&c.lth>1e-6;
+      if(lon){ const lwn=nrm(c.lw), d=lwn>1e-9?c.lw:c.lv, q=lwn>1e-9?cross(c.lw,c.lv):[0,0,0];
+        logL.set(sub(q,scl(d,3)),add(q,scl(d,3)),true); vis(logLab,true,add(q,scl(d,3.2))); }
+      else { logL.set(null,null,false); vis(logLab,false); }
+      grid.visible=show.g; V.needs=true;
     },
     theme(){
       renderer.setClearColor(new THREE.Color(TOK.scene),1);
       Object.entries(mats).forEach(([k,list])=>list.forEach(m=>m.color.set(k==='box'?TOK.surface2:TOK[k])));
       makeGrid(); labels.forEach(l=>l.draw()); V.needs=true;
     },
-    resize(){
-      const w=canvas.clientWidth,h=canvas.clientHeight; if(!w||!h) return;
-      renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); V.needs=true;
-    },
+    resize(){ const w=canvas.clientWidth,h=canvas.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); V.needs=true; },
     render(){ if(ctl.update()) V.needs=true; if(V.needs){renderer.render(scene,cam); V.needs=false;} }
   };
   ctl.addEventListener('change',()=>{V.needs=true;});
@@ -635,27 +972,22 @@ function makeView(canvas,isBody){
   return V;
 }
 
-let ok3d=true;
-try{ views.push(makeView($('cv-s'),false), makeView($('cv-b'),true)); }
-catch(e){ ok3d=false; document.querySelectorAll('.view').forEach(v=>v.insertAdjacentHTML('beforeend','<p style="position:absolute;inset:auto 12px 12px;color:var(--muted);font-size:13px">3D view unavailable: this browser could not start WebGL. The live math below still works.</p>')); }
-
+try{ views.push(makeView($('cv-s'),false),makeView($('cv-b'),true)); }
+catch(e){ console.error(e); document.querySelectorAll('.view').forEach(v=>v.insertAdjacentHTML('beforeend','<p style="position:absolute;inset:auto 12px 12px;color:var(--muted);font-size:13px">3D view unavailable: this browser could not start WebGL. The live math below still works.</p>')); }
 function applyTheme(){ readTokens(); views.forEach(v=>v.theme()); }
 try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme); }catch(e){}
 new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-if(document.fonts && document.fonts.ready) document.fonts.ready.then(applyTheme);
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(applyTheme);
 
 /* ---------- loop ---------- */
-updateForceUI(); syncAll();
+updateUI(); syncAll();
 let last=performance.now(), mathT=0;
 function frame(t){
   const dt=Math.min((t-last)/1000,0.1); last=t;
-  if(spinning){
-    S.th+=S.rate*dt; if(S.th>180) S.th-=360; if(S.th<-180) S.th+=360;
-    sliders.find(s=>s.input.id==='th').sync(); dirty=true;
-  }
+  if(moving){ const d=(S.tmode==='screw'?S.rate*D2R:S.vrate)*dt; if(d) stepMotion(d); }
   if(dirty){
     compute(); views.forEach(v=>v.update());
-    if(!spinning || t-mathT>90){ renderMath(); mathT=t; }
+    if(!moving||t-mathT>120){ renderMath(); mathT=t; }
     dirty=false;
   }
   views.forEach(v=>v.render());
@@ -665,6 +997,5 @@ compute(); renderMath();
 requestAnimationFrame(frame);
 })();
 </script>
-
 </body>
 </html>
